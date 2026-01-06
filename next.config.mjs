@@ -1,34 +1,23 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // CRITICAL: Enable static export
-  output: 'export',
-  
-  // Disable features incompatible with static export
-  trailingSlash: false,
-  
-  // CRITICAL: This pulls the API_KEY from Hostinger's environment variables
-  // and bakes it into the static JavaScript so the browser can use it.
+  // SSR runtime (默认)。不再进行静态导出
+
+  // 将密钥注入到客户端代码（现有前端读取 process.env.API_KEY）
   env: {
     API_KEY: process.env.API_KEY,
   },
 
-  // GitHub Pages/Static hosts do not support Next.js Image Optimization server
-  images: {
-    unoptimized: true,
-  },
-  
-  // Ensure strict mode is on
+  // 保持严格模式
   reactStrictMode: true,
-  
-  // Ignore typescript/eslint errors during build to ensure deployment succeeds
+
+  // 保证构建成功（容错）
   typescript: {
     ignoreBuildErrors: true,
   },
   eslint: {
     ignoreDuringBuilds: true,
   },
-  
-  // Explicitly disable features incompatible with static export
+
   poweredByHeader: false,
 };
 

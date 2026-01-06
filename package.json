@@ -4,8 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build && (test -d out || node copy-to-out.js) && node verify-build.js",
-    "postbuild": "node verify-build.js",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },
