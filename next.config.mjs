@@ -2,10 +2,8 @@
 // Force rebuild timestamp: [Date.now()]
 const nextConfig = {
   // 'export' creates a static HTML/CSS/JS build compatible with GitHub Pages/Hostinger
+  // Output directory will be 'out/' (cannot be changed with output: 'export')
   output: 'export',
-  
-  // Explicitly set the output directory (default is 'out')
-  distDir: '.next',
   
   // CRITICAL: This pulls the API_KEY from Hostinger's environment variables
   // and bakes it into the static JavaScript so the browser can use it.
@@ -29,9 +27,6 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  
-  // Ensure trailing slash for static export compatibility
-  trailingSlash: false,
 };
 
 export default nextConfig;
