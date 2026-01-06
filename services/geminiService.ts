@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { GoogleGenerativeAI, SchemaType, FunctionDeclarationSchemaType } from "@google/generative-ai";
 import { VisionResult, StoreConfig } from "../types.ts";
 
 // Helper to safely access env vars
@@ -26,7 +26,7 @@ const getAiClient = () => {
   const key = getApiKey();
   if (!key) return null; // Return null strictly if no key
   try {
-    return new GoogleGenAI({ apiKey: key });
+    return new GoogleGenerativeAI(key);
   } catch (e) {
     console.warn("Failed to initialize AI client", e);
     return null;
@@ -69,31 +69,21 @@ export const generateStoreTheme = async (prompt: string): Promise<StoreConfig['t
   }
 
   try {
-    const modelId = "gemini-3-flash-preview";
-    const responseSchema: Schema = {
-      type: Type.OBJECT,
-      properties: {
-        name: { type: Type.STRING },
-        description: { type: Type.STRING },
-        primaryColor: { type: Type.STRING },
-        secondaryColor: { type: Type.STRING },
-        fontFamily: { type: Type.STRING },
-        heroHeadline: { type: Type.STRING }
-      },
-      required: ["name", "description", "primaryColor", "secondaryColor", "fontFamily", "heroHeadline"]
-    };
-
-    const response = await ai.models.generateContent({
-      model: modelId,
-      contents: `Branding expert task: Create brand identity for: "${prompt}". Return JSON.`,
-      config: {
+    const model = ai.getGenerativeModel({ 
+      model: "gemini-1.5-flash",
+      generationConfig: {
         responseMimeType: "application/json",
-        responseSchema: responseSchema,
       }
     });
 
-    if (!response.text) throw new Error("No text");
-    return JSON.parse(response.text);
+    const promptText = `Branding expert task: Create brand identity for: "${prompt}". Return JSON with keys: name, description, primaryColor, secondaryColor, fontFamily, heroHeadline.`;
+    
+    const result = await model.generateContent(promptText);
+    const response = await result.response;
+    const text = response.text();
+
+    if (!text) throw new Error("No text");
+    return JSON.parse(text);
   } catch (e) {
     console.error("AI Error, falling back to mock", e);
     return {
@@ -128,37 +118,30 @@ export const generateProductFromImage = async (base64Image: string, mimeType: st
   }
 
   try {
-    const modelId = "gemini-2.5-flash-image";
-    const responseSchema: Schema = {
-      type: Type.OBJECT,
-      properties: {
-        title: { type: Type.STRING },
-        descriptionHtml: { type: Type.STRING },
-        seoTitle: { type: Type.STRING },
-        seoDescription: { type: Type.STRING },
-        tags: { type: Type.ARRAY, items: { type: Type.STRING } },
-        estimatedPrice: { type: Type.NUMBER },
-        suggestedAdCopy: { type: Type.STRING }
-      },
-      required: ["title", "descriptionHtml", "seoTitle", "seoDescription", "tags", "estimatedPrice", "suggestedAdCopy"]
-    };
-
-    const response = await ai.models.generateContent({
-      model: modelId,
-      contents: {
-        parts: [
-          { inlineData: { data: base64Image, mimeType: mimeType } },
-          { text: "Analyze product image. Generate listing JSON." }
-        ]
-      },
-      config: {
+    const model = ai.getGenerativeModel({ 
+      model: "gemini-1.5-flash",
+      generationConfig: {
         responseMimeType: "application/json",
-        responseSchema: responseSchema,
       }
     });
 
-    if (!response.text) throw new Error("Failed");
-    return JSON.parse(response.text);
+    const result = await model.generateContent([
+      {
+        inlineData: {
+          data: base64Image,
+          mimeType: mimeType
+        }
+      },
+      {
+        text: "Analyze product image. Generate listing JSON with keys: title, descriptionHtml, seoTitle, seoDescription, tags (array), estimatedPrice (number), suggestedAdCopy."
+      }
+    ]);
+    
+    const response = await result.response;
+    const text = response.text();
+
+    if (!text) throw new Error("Failed");
+    return JSON.parse(text);
   } catch (e) {
     console.error("Vision AI Error", e);
     return {
@@ -189,12 +172,15 @@ export const generateLegalDocs = async (companyName: string, country: string, ad
   }
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: `Generate legal policies JSON for ${companyName}, ${country}. Keys: privacyPolicy, termsOfService, shippingPolicy. Content: HTML strings.`,
-      config: { responseMimeType: "application/json" }
+    const model = ai.getGenerativeModel({ 
+      model: "gemini-1.5-flash",
+      generationConfig: {
+        responseMimeType: "application/json",
+      }
     });
-    return JSON.parse(response.text || "{}");
+    const result = await model.generateContent(`Generate legal policies JSON for ${companyName}, ${country}. Keys: privacyPolicy, termsOfService, shippingPolicy. Content: HTML strings.`);
+    const response = await result.response;
+    return JSON.parse(response.text() || "{}");
   } catch (e) {
     return { privacyPolicy: "Error", termsOfService: "Error", shippingPolicy: "Error" };
   }
@@ -208,11 +194,10 @@ export const generateEmailDraft = async (customerName: string, emailBody: string
   if (!ai) return `[MOCK DRAFT] Hi ${customerName},\n\nThank you for your email. This is a simulated response in a ${tone} tone.\n\nBest regards,\nEzshopia Support`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: `Reply to ${customerName}: "${emailBody}". Tone: ${tone}.`
-    });
-    return response.text || "";
+    const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const result = await model.generateContent(`Reply to ${customerName}: "${emailBody}". Tone: ${tone}.`);
+    const response = await result.response;
+    return response.text() || "";
   } catch (e) {
     return "Error generating draft.";
   }
@@ -226,11 +211,10 @@ export const generateReviewReply = async (customerName: string, rating: number, 
   if (!ai) return `Hi ${customerName}, thanks for your ${rating}-star review! (Mock Reply)`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: `Reply to review. Customer: ${customerName}, Rating: ${rating}, Comment: ${comment}`
-    });
-    return response.text || "";
+    const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const result = await model.generateContent(`Reply to review. Customer: ${customerName}, Rating: ${rating}, Comment: ${comment}`);
+    const response = await result.response;
+    return response.text() || "";
   } catch (e) {
     return "Thanks for your feedback!";
   }
@@ -249,12 +233,15 @@ export const analyzeCustomerSegment = async (name: string, spent: number, orderC
   }
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: `Analyze customer ${name}, spent $${spent}, orders ${orderCount}. Return JSON {tags: string[], insight: string}`,
-      config: { responseMimeType: "application/json" }
+    const model = ai.getGenerativeModel({ 
+      model: "gemini-1.5-flash",
+      generationConfig: {
+        responseMimeType: "application/json",
+      }
     });
-    return JSON.parse(response.text || "{}");
+    const result = await model.generateContent(`Analyze customer ${name}, spent $${spent}, orders ${orderCount}. Return JSON {tags: string[], insight: string}`);
+    const response = await result.response;
+    return JSON.parse(response.text() || "{}");
   } catch (e) {
     return { tags: ["Error"], insight: "Could not analyze." };
   }
@@ -268,11 +255,10 @@ export const generateMarketingStrategy = async (products: any[]) => {
   if (!ai) return "<h3>Mock Strategy</h3><p>1. Target Audience: Everyone.</p><p>2. Ad Copy: Buy Now!</p><p>3. Budget: $100/day</p>";
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: `Create marketing strategy HTML for ${products.length} products.`
-    });
-    return response.text || "";
+    const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const result = await model.generateContent(`Create marketing strategy HTML for ${products.length} products.`);
+    const response = await result.response;
+    return response.text() || "";
   } catch (e) {
     return "Error generating strategy.";
   }
