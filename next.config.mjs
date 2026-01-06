@@ -1,14 +1,10 @@
 /** @type {import('next').NextConfig} */
-// Force rebuild timestamp: [Date.now()]
 const nextConfig = {
-  // 'export' creates a static HTML/CSS/JS build compatible with GitHub Pages/Hostinger
-  // Output directory will be 'out/' (cannot be changed with output: 'export')
+  // CRITICAL: Enable static export
   output: 'export',
   
-  // Disable server-side features for static export
-  experimental: {
-    // Ensure static export works
-  },
+  // Disable features incompatible with static export
+  trailingSlash: false,
   
   // CRITICAL: This pulls the API_KEY from Hostinger's environment variables
   // and bakes it into the static JavaScript so the browser can use it.
@@ -19,7 +15,6 @@ const nextConfig = {
   // GitHub Pages/Static hosts do not support Next.js Image Optimization server
   images: {
     unoptimized: true,
-    domains: ['picsum.photos', 'via.placeholder.com'],
   },
   
   // Ensure strict mode is on
