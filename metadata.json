@@ -1,0 +1,7 @@
+{
+  "name": "Ezshopia AI Dashboard",
+  "description": "Next-gen self-hosted e-commerce dashboard featuring AI Prompt-to-Store and Vision-to-Listing capabilities.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
