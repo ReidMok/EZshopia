@@ -5,6 +5,11 @@ const nextConfig = {
   // Output directory will be 'out/' (cannot be changed with output: 'export')
   output: 'export',
   
+  // Disable server-side features for static export
+  experimental: {
+    // Ensure static export works
+  },
+  
   // CRITICAL: This pulls the API_KEY from Hostinger's environment variables
   // and bakes it into the static JavaScript so the browser can use it.
   env: {
@@ -27,6 +32,9 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  
+  // Explicitly disable features incompatible with static export
+  poweredByHeader: false,
 };
 
 export default nextConfig;
