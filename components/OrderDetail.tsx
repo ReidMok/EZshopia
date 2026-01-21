@@ -1,5 +1,5 @@
-import React from 'react';
-import { X, Package, MapPin, CreditCard, Truck, CheckCircle2, Clock, AlertCircle, ChevronLeft } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Package, MapPin, CreditCard, Truck, CheckCircle2, Clock, AlertCircle, ChevronLeft, Printer, Download, Mail, MessageSquare } from 'lucide-react';
 import { Order } from '../types.ts';
 
 interface OrderDetailProps {
@@ -9,6 +9,7 @@ interface OrderDetailProps {
 }
 
 const OrderDetail: React.FC<OrderDetailProps> = ({ order, onClose, onUpdateStatus }) => {
+  const [notes, setNotes] = useState<string>('');
   const getStatusIcon = () => {
     switch (order.status) {
       case 'PAID':
@@ -176,33 +177,65 @@ const OrderDetail: React.FC<OrderDetailProps> = ({ order, onClose, onUpdateStatu
             </div>
           </div>
 
+          {/* Order Notes */}
+          <div>
+            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center">
+              <MessageSquare className="w-4 h-4 mr-2" />
+              Order Notes
+            </h3>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              placeholder="Add internal notes about this order..."
+            />
+            <p className="mt-1 text-xs text-gray-500">Private notes visible only to you</p>
+          </div>
+
           {/* Actions */}
           {onUpdateStatus && (
-            <div className="flex space-x-3 pt-4 border-t border-gray-200">
-              {order.status === 'PENDING' && (
-                <>
-                  <button
-                    onClick={() => onUpdateStatus(order.id, 'PAID')}
-                    className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors"
-                  >
-                    Mark as Paid
-                  </button>
+            <div className="flex flex-col space-y-3 pt-4 border-t border-gray-200">
+              <div className="flex space-x-3">
+                {order.status === 'PENDING' && (
+                  <>
+                    <button
+                      onClick={() => onUpdateStatus(order.id, 'PAID')}
+                      className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center"
+                    >
+                      <CheckCircle2 className="w-4 h-4 mr-2" />
+                      Mark as Paid
+                    </button>
+                    <button
+                      onClick={() => onUpdateStatus(order.id, 'SHIPPED')}
+                      className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center"
+                    >
+                      <Truck className="w-4 h-4 mr-2" />
+                      Mark as Shipped
+                    </button>
+                  </>
+                )}
+                {order.status === 'PAID' && (
                   <button
                     onClick={() => onUpdateStatus(order.id, 'SHIPPED')}
-                    className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                    className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center"
                   >
+                    <Truck className="w-4 h-4 mr-2" />
                     Mark as Shipped
                   </button>
-                </>
-              )}
-              {order.status === 'PAID' && (
-                <button
-                  onClick={() => onUpdateStatus(order.id, 'SHIPPED')}
-                  className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-                >
-                  Mark as Shipped
-                </button>
-              )}
+                )}
+                {order.status === 'SHIPPED' && (
+                  <div className="flex-1 text-center text-sm text-gray-500 py-2">
+                    Order has been shipped
+                  </div>
+                )}
+              </div>
+              <button
+                className="w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition-colors flex items-center justify-center"
+              >
+                <Mail className="w-4 h-4 mr-2" />
+                Send Customer Email
+              </button>
             </div>
           )}
         </div>

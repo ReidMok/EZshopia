@@ -14,7 +14,7 @@ import Storefront from './components/Storefront.tsx';
 import OrderDetail from './components/OrderDetail.tsx';
 import ProductEditor from './components/ProductEditor.tsx';
 import { Product, ProductStatus, StoreConfig, Email, Review, Customer, Order } from './types.ts';
-import { Plus, Package, Repeat, LogOut, Eye, AlertTriangle, Edit2 } from 'lucide-react';
+import { Plus, Package, Repeat, LogOut, Eye, AlertTriangle, Edit2, Eye as EyeIcon } from 'lucide-react';
 
 // Default Config
 const DEFAULT_CONFIG: StoreConfig = {
@@ -254,14 +254,14 @@ const App: React.FC = () => {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                         {orders.map((order) => (
                         <tr 
                             key={order.id} 
-                            className="hover:bg-gray-50 cursor-pointer transition-colors"
-                            onClick={() => setSelectedOrder(order)}
+                            className="hover:bg-gray-50 transition-colors"
                         >
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{order.id}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.customer}</td>
@@ -275,6 +275,18 @@ const App: React.FC = () => {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${order.total.toFixed(2)}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.date}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedOrder(order);
+                                    }}
+                                    className="text-blue-600 hover:text-blue-900 flex items-center ml-auto"
+                                >
+                                    <EyeIcon className="w-4 h-4 mr-1" />
+                                    View
+                                </button>
+                            </td>
                         </tr>
                         ))}
                     </tbody>
