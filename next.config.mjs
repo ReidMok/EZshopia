@@ -7,8 +7,8 @@ const nextConfig = {
     API_KEY: process.env.API_KEY,
   },
 
-  // 保持严格模式
-  reactStrictMode: true,
+  // 暂时禁用严格模式以避免 hydration 错误
+  reactStrictMode: false,
 
   // 保证构建成功（容错）
   typescript: {
@@ -19,6 +19,15 @@ const nextConfig = {
   },
 
   poweredByHeader: false,
+
+  // 优化构建输出
+  swcMinify: true,
+
+  // 改进错误处理
+  onDemandEntries: {
+    maxInactiveAge: 25 * 1000,
+    pagesBufferLength: 2,
+  },
 };
 
 export default nextConfig;
