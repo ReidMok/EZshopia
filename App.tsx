@@ -12,8 +12,9 @@ import SuperAdminDashboard from './components/SuperAdminDashboard.tsx';
 import Login from './components/Login.tsx';
 import Storefront from './components/Storefront.tsx';
 import OrderDetail from './components/OrderDetail.tsx';
+import ProductEditor from './components/ProductEditor.tsx';
 import { Product, ProductStatus, StoreConfig, Email, Review, Customer, Order } from './types.ts';
-import { Plus, Package, Repeat, LogOut, Eye, AlertTriangle } from 'lucide-react';
+import { Plus, Package, Repeat, LogOut, Eye, AlertTriangle, Edit2 } from 'lucide-react';
 
 // Default Config
 const DEFAULT_CONFIG: StoreConfig = {
@@ -81,6 +82,7 @@ const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('LOGIN'); 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isCreating, setIsCreating] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [mountError, setMountError] = useState<string | null>(null);
 
@@ -279,6 +281,9 @@ const App: React.FC = () => {
             if (isCreating) {
                 return <AiProductCreator onSave={handleSaveProduct} onCancel={() => setIsCreating(false)} />;
             }
+            if (editingProduct) {
+                return <ProductEditor product={editingProduct} onSave={handleUpdateProduct} onCancel={() => setEditingProduct(null)} />;
+            }
             return (
                 <div className="max-w-6xl mx-auto">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
@@ -303,6 +308,7 @@ const App: React.FC = () => {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SEO Score</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -344,6 +350,15 @@ const App: React.FC = () => {
                                 </div>
                                 <span className="text-xs text-gray-500">{product.seoTitle ? '90' : '30'}</span>
                             </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button
+                                onClick={() => setEditingProduct(product)}
+                                className="text-blue-600 hover:text-blue-900 flex items-center ml-auto"
+                            >
+                                <Edit2 className="w-4 h-4 mr-1" />
+                                Edit
+                            </button>
                             </td>
                         </tr>
                         ))}
