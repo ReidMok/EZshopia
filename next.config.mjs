@@ -37,7 +37,15 @@ const nextConfig = {
         headers: [
           {
             key: 'Cache-Control',
-            value: 'public, max-age=0, must-revalidate',
+            value: 'no-cache, no-store, must-revalidate, max-age=0',
+          },
+          {
+            key: 'Pragma',
+            value: 'no-cache',
+          },
+          {
+            key: 'Expires',
+            value: '0',
           },
           {
             key: 'X-Content-Type-Options',
@@ -55,11 +63,6 @@ const nextConfig = {
         ],
       },
     ];
-  },
-
-  // 生成唯一构建 ID，强制浏览器加载新版本
-  generateBuildId: async () => {
-    return `build-${Date.now()}`;
   },
 };
 
