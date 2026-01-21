@@ -98,17 +98,21 @@ const Dashboard: React.FC = () => {
         <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
           <h3 className="text-lg font-bold text-gray-900 mb-4">Revenue Analytics</h3>
           <div className="h-64 flex items-end justify-between space-x-2">
-            {[35, 45, 30, 60, 75, 50, 65, 80, 70, 90, 85, 95].map((height, i) => (
-              <div key={i} className="flex-1 h-full flex flex-col justify-end relative group">
-                <div 
-                  className="w-full bg-blue-600 rounded-t transition-all duration-500 hover:bg-blue-500"
-                  style={{ height: `${height}%` }}
-                ></div>
-                <div className="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs py-1 px-2 rounded whitespace-nowrap z-10">
-                  ${height * 100}
+            {[35, 45, 30, 60, 75, 50, 65, 80, 70, 90, 85, 95].map((height, i) => {
+              // h-64 = 256px, calculate actual pixel height
+              const pixelHeight = (height / 100) * 256;
+              return (
+                <div key={i} className="flex-1 relative group" style={{ height: '256px' }}>
+                  <div 
+                    className="w-full bg-blue-600 rounded-t transition-all duration-500 hover:bg-blue-500 absolute bottom-0"
+                    style={{ height: `${pixelHeight}px`, minHeight: '4px' }}
+                  ></div>
+                  <div className="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs py-1 px-2 rounded whitespace-nowrap z-10">
+                    ${height * 100}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div className="flex justify-between mt-4 text-xs text-gray-400">
             <span>Jan</span><span>Dec</span>
