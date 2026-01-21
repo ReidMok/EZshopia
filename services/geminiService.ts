@@ -118,11 +118,12 @@ export const generateProductFromImage = async (base64Image: string, mimeType: st
       const data = await response.json();
       return data;
     } else {
-      const error = await response.json();
-      throw new Error(error.error || 'API request failed');
+      const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}: ${response.statusText}` }));
+      console.error("Server API route error:", errorData);
+      throw new Error(errorData.error || errorData.details || `API request failed with status ${response.status}`);
     }
   } catch (fetchError: any) {
-    console.warn("Server API route failed, trying client-side:", fetchError);
+    console.error("Server API route failed:", fetchError);
     
     // 回退到客户端直接调用（向后兼容）
     const ai = getAiClient();
@@ -171,9 +172,14 @@ export const generateProductFromImage = async (base64Image: string, mimeType: st
       const errorMessage = e?.message || e?.toString() || "Unknown error";
       const hasApiKey = !!getApiKey();
       
+      // 显示更详细的错误信息
+      const detailedError = hasApiKey 
+        ? `API Error: ${errorMessage}${errorMessage.includes('API_KEY') ? ' Check Hostinger environment variables.' : ''}`
+        : 'Please check API Key in environment variables. Visit /api/gemini/test to verify.';
+      
       return {
         title: "Error Generating Product",
-        descriptionHtml: `<p>Could not analyze image. ${hasApiKey ? `API Error: ${errorMessage}` : 'Please check API Key in environment variables.'}</p>`,
+        descriptionHtml: `<p>Could not analyze image. ${detailedError}</p><p style="color: #666; font-size: 12px; margin-top: 8px;">Check browser console (F12) for detailed error logs.</p>`,
         seoTitle: "Error",
         seoDescription: hasApiKey ? `API Error: ${errorMessage.substring(0, 100)}` : "API Key Missing",
         tags: ["error"],
