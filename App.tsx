@@ -281,9 +281,9 @@ const App: React.FC = () => {
                                         e.stopPropagation();
                                         setSelectedOrder(order);
                                     }}
-                                    className="text-blue-600 hover:text-blue-900 flex items-center ml-auto"
+                                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-colors"
                                 >
-                                    <EyeIcon className="w-4 h-4 mr-1" />
+                                    <EyeIcon className="w-4 h-4 mr-1.5" />
                                     View
                                 </button>
                             </td>
@@ -370,10 +370,13 @@ const App: React.FC = () => {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <button
-                                onClick={() => setEditingProduct(product)}
-                                className="text-blue-600 hover:text-blue-900 flex items-center ml-auto"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingProduct(product);
+                                }}
+                                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-colors"
                             >
-                                <Edit2 className="w-4 h-4 mr-1" />
+                                <Edit2 className="w-4 h-4 mr-1.5" />
                                 Edit
                             </button>
                             </td>
