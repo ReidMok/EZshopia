@@ -11,7 +11,8 @@ import Customers from './components/Customers.tsx';
 import SuperAdminDashboard from './components/SuperAdminDashboard.tsx';
 import Login from './components/Login.tsx';
 import Storefront from './components/Storefront.tsx';
-import { Product, ProductStatus, StoreConfig, Email, Review, Customer } from './types.ts';
+import OrderDetail from './components/OrderDetail.tsx';
+import { Product, ProductStatus, StoreConfig, Email, Review, Customer, Order } from './types.ts';
 import { Plus, Package, Repeat, LogOut, Eye, AlertTriangle } from 'lucide-react';
 
 // Default Config
@@ -67,7 +68,7 @@ const INITIAL_CUSTOMERS: Customer[] = [
     { id: 'c3', name: 'Charlie Day', email: 'charlie@example.com', totalSpent: 299.99, ordersCount: 2, lastOrderDate: '2023-09-15', tags: [] },
 ];
 
-const MOCK_ORDERS = [
+const INITIAL_ORDERS: Order[] = [
     { id: '#ORD-1002', customer: 'Alice Wong', total: 125.50, status: 'PAID', date: 'Oct 24, 2023', items: 3 },
     { id: '#ORD-1001', customer: 'Bob Smith', total: 45.00, status: 'SHIPPED', date: 'Oct 23, 2023', items: 1 },
     { id: '#ORD-1000', customer: 'Charlie Day', total: 299.99, status: 'PENDING', date: 'Oct 22, 2023', items: 5 },
@@ -80,6 +81,7 @@ const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('LOGIN'); 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isCreating, setIsCreating] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [mountError, setMountError] = useState<string | null>(null);
 
   // Initial states
@@ -88,6 +90,7 @@ const App: React.FC = () => {
   const [emails, setEmails] = useState<Email[]>(INITIAL_EMAILS);
   const [reviews, setReviews] = useState<Review[]>(INITIAL_REVIEWS);
   const [customers, setCustomers] = useState<Customer[]>(INITIAL_CUSTOMERS);
+  const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
 
   // Load from localStorage safely
   useEffect(() => {
@@ -107,6 +110,9 @@ const App: React.FC = () => {
 
       const savedCustomers = localStorage.getItem('ezshopia_customers');
       if (savedCustomers) setCustomers(JSON.parse(savedCustomers));
+
+      const savedOrders = localStorage.getItem('ezshopia_orders');
+      if (savedOrders) setOrders(JSON.parse(savedOrders));
     } catch (error: any) {
       console.error('Failed to load storage:', error);
       setMountError(error.message);
@@ -119,6 +125,7 @@ const App: React.FC = () => {
   useEffect(() => { try { localStorage.setItem('ezshopia_emails', JSON.stringify(emails)); } catch(e){} }, [emails]);
   useEffect(() => { try { localStorage.setItem('ezshopia_reviews', JSON.stringify(reviews)); } catch(e){} }, [reviews]);
   useEffect(() => { try { localStorage.setItem('ezshopia_customers', JSON.stringify(customers)); } catch(e){} }, [customers]);
+  useEffect(() => { try { localStorage.setItem('ezshopia_orders', JSON.stringify(orders)); } catch(e){} }, [orders]);
 
   // Handlers
   const handleUpdateStoreConfig = (newConfig: Partial<StoreConfig>) => {
@@ -157,6 +164,10 @@ const App: React.FC = () => {
 
   const handleUpdateCustomer = (updatedCustomer: Customer) => {
       setCustomers(customers.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
+  }
+
+  const handleUpdateOrderStatus = (orderId: string, newStatus: Order['status']) => {
+      setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
   }
 
   // --- ERROR BOUNDARY UI ---
@@ -214,7 +225,17 @@ const App: React.FC = () => {
         case 'reviews': return <Reviews reviews={reviews} onUpdateReview={handleUpdateReview} />;
         case 'workflows': return <Workflows />;
         case 'customers': return <Customers customers={customers} onUpdateCustomer={handleUpdateCustomer} />;
-        case 'orders': return (
+        case 'orders':
+            if (selectedOrder) {
+                return (
+                    <OrderDetail 
+                        order={selectedOrder} 
+                        onClose={() => setSelectedOrder(null)}
+                        onUpdateStatus={handleUpdateOrderStatus}
+                    />
+                );
+            }
+            return (
             <div className="max-w-6xl mx-auto">
                 <h1 className="text-2xl font-bold text-gray-900 mb-6">Orders</h1>
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -229,8 +250,12 @@ const App: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                        {MOCK_ORDERS.map((order) => (
-                        <tr key={order.id} className="hover:bg-gray-50">
+                        {orders.map((order) => (
+                        <tr 
+                            key={order.id} 
+                            className="hover:bg-gray-50 cursor-pointer transition-colors"
+                            onClick={() => setSelectedOrder(order)}
+                        >
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{order.id}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.customer}</td>
                             <td className="px-6 py-4 whitespace-nowrap">
