@@ -24,11 +24,14 @@ export const hasValidApiKey = (): boolean => {
 
 const getAiClient = () => {
   const key = getApiKey();
-  if (!key) return null; // Return null strictly if no key
+  if (!key) {
+    console.warn("API Key not found. Check environment variable API_KEY.");
+    return null;
+  }
   try {
     return new GoogleGenerativeAI(key);
   } catch (e) {
-    console.warn("Failed to initialize AI client", e);
+    console.error("Failed to initialize AI client", e);
     return null;
   }
 };
@@ -101,58 +104,83 @@ export const generateStoreTheme = async (prompt: string): Promise<StoreConfig['t
  * Task 2.2: Vision-to-Listing
  */
 export const generateProductFromImage = async (base64Image: string, mimeType: string): Promise<VisionResult> => {
-  const ai = getAiClient();
-
-  if (!ai) {
-    console.warn("Using Mock Data for Product Vision");
-    await new Promise(r => setTimeout(r, 1500));
-    return {
-      title: "Premium Mock Product",
-      descriptionHtml: "<p>This is a <strong>simulated</strong> product description because no API key was provided.</p><ul><li>High quality material</li><li>Eco-friendly design</li><li>Durable construction</li></ul>",
-      seoTitle: "Premium Mock Product | Best in Class",
-      seoDescription: "Discover our premium mock product, perfect for testing the UI layout.",
-      tags: ["mock", "demo", "test", "premium"],
-      estimatedPrice: 99.99,
-      suggestedAdCopy: "✨ Experience the future of mock data! #Ezshopia #Demo"
-    };
-  }
-
+  // 优先使用服务端 API 路由（更安全）
   try {
-    const model = ai.getGenerativeModel({ 
-      model: "gemini-1.5-flash",
-      generationConfig: {
-        responseMimeType: "application/json",
-      }
+    const response = await fetch('/api/gemini/vision', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ base64Image, mimeType }),
     });
 
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          data: base64Image,
-          mimeType: mimeType
-        }
-      },
-      {
-        text: "Analyze product image. Generate listing JSON with keys: title, descriptionHtml, seoTitle, seoDescription, tags (array), estimatedPrice (number), suggestedAdCopy."
-      }
-    ]);
+    if (response.ok) {
+      const data = await response.json();
+      return data;
+    } else {
+      const error = await response.json();
+      throw new Error(error.error || 'API request failed');
+    }
+  } catch (fetchError: any) {
+    console.warn("Server API route failed, trying client-side:", fetchError);
     
-    const response = await result.response;
-    const text = response.text();
+    // 回退到客户端直接调用（向后兼容）
+    const ai = getAiClient();
 
-    if (!text) throw new Error("Failed");
-    return JSON.parse(text);
-  } catch (e) {
-    console.error("Vision AI Error", e);
-    return {
-      title: "Error Generating Product",
-      descriptionHtml: "<p>Could not analyze image. Please check API Key.</p>",
-      seoTitle: "Error",
-      seoDescription: "Error",
-      tags: ["error"],
-      estimatedPrice: 0,
-      suggestedAdCopy: "Error generating copy."
-    };
+    if (!ai) {
+      console.warn("Using Mock Data for Product Vision");
+      await new Promise(r => setTimeout(r, 1500));
+      return {
+        title: "Premium Mock Product",
+        descriptionHtml: "<p>This is a <strong>simulated</strong> product description because no API key was provided.</p><ul><li>High quality material</li><li>Eco-friendly design</li><li>Durable construction</li></ul>",
+        seoTitle: "Premium Mock Product | Best in Class",
+        seoDescription: "Discover our premium mock product, perfect for testing the UI layout.",
+        tags: ["mock", "demo", "test", "premium"],
+        estimatedPrice: 99.99,
+        suggestedAdCopy: "✨ Experience the future of mock data! #Ezshopia #Demo"
+      };
+    }
+
+    try {
+      const model = ai.getGenerativeModel({ 
+        model: "gemini-1.5-flash",
+        generationConfig: {
+          responseMimeType: "application/json",
+        }
+      });
+
+      const result = await model.generateContent([
+        {
+          inlineData: {
+            data: base64Image,
+            mimeType: mimeType
+          }
+        },
+        {
+          text: "Analyze product image. Generate listing JSON with keys: title, descriptionHtml, seoTitle, seoDescription, tags (array), estimatedPrice (number), suggestedAdCopy."
+        }
+      ]);
+      
+      const response = await result.response;
+      const text = response.text();
+
+      if (!text) throw new Error("Failed");
+      return JSON.parse(text);
+    } catch (e: any) {
+      console.error("Vision AI Error", e);
+      const errorMessage = e?.message || e?.toString() || "Unknown error";
+      const hasApiKey = !!getApiKey();
+      
+      return {
+        title: "Error Generating Product",
+        descriptionHtml: `<p>Could not analyze image. ${hasApiKey ? `API Error: ${errorMessage}` : 'Please check API Key in environment variables.'}</p>`,
+        seoTitle: "Error",
+        seoDescription: hasApiKey ? `API Error: ${errorMessage.substring(0, 100)}` : "API Key Missing",
+        tags: ["error"],
+        estimatedPrice: 0,
+        suggestedAdCopy: hasApiKey ? `Error: ${errorMessage.substring(0, 50)}` : "Error generating copy."
+      };
+    }
   }
 };
 
