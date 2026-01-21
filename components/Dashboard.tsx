@@ -99,12 +99,12 @@ const Dashboard: React.FC = () => {
           <h3 className="text-lg font-bold text-gray-900 mb-4">Revenue Analytics</h3>
           <div className="h-64 flex items-end justify-between space-x-2">
             {[35, 45, 30, 60, 75, 50, 65, 80, 70, 90, 85, 95].map((height, i) => (
-              <div key={i} className="w-full bg-blue-50 rounded-t hover:bg-blue-100 transition-colors relative group">
+              <div key={i} className="flex-1 h-full flex flex-col justify-end relative group">
                 <div 
-                  className="absolute bottom-0 w-full bg-blue-600 rounded-t transition-all duration-500"
+                  className="w-full bg-blue-600 rounded-t transition-all duration-500 hover:bg-blue-500"
                   style={{ height: `${height}%` }}
                 ></div>
-                <div className="opacity-0 group-hover:opacity-100 absolute -top-10 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs py-1 px-2 rounded">
+                <div className="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs py-1 px-2 rounded whitespace-nowrap z-10">
                   ${height * 100}
                 </div>
               </div>
