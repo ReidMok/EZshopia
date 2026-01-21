@@ -164,6 +164,11 @@ const App: React.FC = () => {
       setReviews(reviews.map(r => r.id === updatedReview.id ? updatedReview : r));
   }
 
+  const handleUpdateProduct = (updatedProduct: Product) => {
+      setProducts(products.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+      setEditingProduct(null);
+  };
+
   const handleUpdateCustomer = (updatedCustomer: Customer) => {
       setCustomers(customers.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
   }
