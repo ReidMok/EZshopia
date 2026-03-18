@@ -128,6 +128,7 @@ export interface PublicReview {
   body: string;
   createdAt: string; // ISO
   source: 'DEMO' | 'REAL';
+  visibility?: 'VISIBLE' | 'HIDDEN';
 }
 
 export interface Workflow {

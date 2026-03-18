@@ -2,11 +2,13 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { Order, Product, ProductStatus, PublicReview, StoreConfig } from '../types';
+import type { Customer } from '../types';
 
 export type StoreData = {
   storeConfig: StoreConfig;
   products: Product[];
   orders: Order[];
+  customers: Customer[];
 };
 
 export type DbShape = {
@@ -71,6 +73,7 @@ async function readDb(): Promise<DbShape> {
         storeConfig: legacyStoreConfig || DEFAULT_CONFIG,
         products: legacyProducts,
         orders: [],
+        customers: [],
       };
     }
 
@@ -82,7 +85,7 @@ async function readDb(): Promise<DbShape> {
     };
   } catch {
     const init: DbShape = {
-      stores: { demo: { storeConfig: DEFAULT_CONFIG, products: [], orders: [] } },
+      stores: { demo: { storeConfig: DEFAULT_CONFIG, products: [], orders: [], customers: [] } },
       publicReviews: {},
       storeConfig: DEFAULT_CONFIG,
       products: [],
@@ -121,6 +124,7 @@ async function ensureStore(db: DbShape, storeKey: string) {
     },
     products: [],
     orders: [],
+    customers: [],
   };
   db.stores[storeKey] = created;
   // legacy mirror for demo
@@ -386,9 +390,88 @@ function generateDemoReviews(product: Product, count: number): PublicReview[] {
       body: i === 0 ? boostedBody : pick(rng, bodies),
       createdAt,
       source: 'DEMO',
+      visibility: 'VISIBLE',
     });
   }
   return reviews;
+}
+
+export async function listCustomersForStore(storeKey: string) {
+  const db = await readDb();
+  const store = await ensureStore(db, storeKey);
+  store.customers = store.customers || [];
+  return store.customers;
+}
+
+export async function upsertCustomerForStore(storeKey: string, customer: Customer) {
+  const db = await readDb();
+  const store = await ensureStore(db, storeKey);
+  store.customers = store.customers || [];
+  const idx = store.customers.findIndex((c) => c.id === customer.id);
+  if (idx >= 0) store.customers[idx] = customer;
+  else store.customers = [customer, ...store.customers];
+  db.stores = db.stores || {};
+  db.stores[storeKey] = store;
+  await writeDb(db);
+  return customer;
+}
+
+function customerIdFromEmail(email: string) {
+  return crypto.createHash('sha256').update(email.trim().toLowerCase()).digest('hex').slice(0, 12);
+}
+
+export async function ensureCustomerFromOrder(storeKey: string, order: Order & any) {
+  const db = await readDb();
+  const store = await ensureStore(db, storeKey);
+  store.customers = store.customers || [];
+  const email = (order?.email || '').toString().trim().toLowerCase();
+  if (!email) return null;
+  const id = customerIdFromEmail(email);
+  const existing = store.customers.find((c) => c.id === id);
+  const totalSpent = Number(order.total || 0);
+  const next: Customer = {
+    id,
+    name: (order.customer || 'Customer').toString(),
+    email,
+    totalSpent: existing ? existing.totalSpent + totalSpent : totalSpent,
+    ordersCount: existing ? existing.ordersCount + 1 : 1,
+    lastOrderDate: new Date().toISOString().slice(0, 10),
+    tags: existing?.tags || [],
+    aiInsights: existing?.aiInsights,
+  };
+  const idx = store.customers.findIndex((c) => c.id === id);
+  if (idx >= 0) store.customers[idx] = next;
+  else store.customers = [next, ...store.customers];
+  db.stores = db.stores || {};
+  db.stores[storeKey] = store;
+  await writeDb(db);
+  return next;
+}
+
+export async function listPublicReviewsForStore(storeKey: string) {
+  const db = await readDb();
+  const store = await ensureStore(db, storeKey);
+  const products = store.products || [];
+  const reviewMap = db.publicReviews || {};
+  const out: Array<PublicReview & { productTitle: string; productSlug: string }> = [];
+  for (const p of products) {
+    const rs = reviewMap[p.id] || [];
+    for (const r of rs) out.push({ ...r, productTitle: p.title, productSlug: p.slug });
+  }
+  out.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  return out;
+}
+
+export async function setReviewVisibility(productId: string, reviewId: string, visibility: 'VISIBLE' | 'HIDDEN') {
+  const db = await readDb();
+  db.publicReviews = db.publicReviews || {};
+  const rs = db.publicReviews[productId] || [];
+  const idx = rs.findIndex((r) => r.id === reviewId);
+  if (idx < 0) return null;
+  rs[idx] = { ...rs[idx], visibility };
+  db.publicReviews[productId] = rs;
+  await writeDb(db);
+  return rs[idx];
 }
 
 export async function getOrCreatePublicReviews(productId: string) {

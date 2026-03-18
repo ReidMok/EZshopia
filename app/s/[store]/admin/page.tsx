@@ -2,14 +2,15 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import type { Order, Product, StoreConfig } from '../../../../types';
-import { Plus, Store, ArrowRight, Box, ShoppingBag, Settings as SettingsIcon, Package, Pencil, Sparkles } from 'lucide-react';
+import type { Customer, Order, Product, PublicReview, StoreConfig } from '../../../../types';
+import { Plus, Store, ArrowRight, Box, ShoppingBag, Settings as SettingsIcon, Package, Pencil, Sparkles, MessageSquare, EyeOff, Eye } from 'lucide-react';
 import AiProductCreator from '../../../../components/AiProductCreator';
 import ProductEditor from '../../../../components/ProductEditor';
 import Settings from '../../../../components/Settings';
 import OrderDetail from '../../../../components/OrderDetail';
+import Customers from '../../../../components/Customers';
 
-type Tab = 'products' | 'orders' | 'settings';
+type Tab = 'products' | 'orders' | 'customers' | 'reviews' | 'settings';
 type View = 'list' | 'create' | 'edit' | 'order_detail';
 
 export default function StoreAdminPage() {
@@ -21,6 +22,8 @@ export default function StoreAdminPage() {
   const [config, setConfig] = useState<StoreConfig | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [reviews, setReviews] = useState<Array<PublicReview & { productTitle?: string; productSlug?: string }>>([]);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,6 +39,16 @@ export default function StoreAdminPage() {
       const oRes = await fetch(`/api/store/${encodeURIComponent(store)}/orders`, { cache: 'no-store' });
       const oData = await oRes.json();
       setOrders(Array.isArray(oData) ? oData : []);
+    } catch {}
+    try {
+      const cRes = await fetch(`/api/store/${encodeURIComponent(store)}/customers`, { cache: 'no-store' });
+      const cData = await cRes.json();
+      setCustomers(Array.isArray(cData) ? cData : []);
+    } catch {}
+    try {
+      const rRes = await fetch(`/api/store/${encodeURIComponent(store)}/reviews`, { cache: 'no-store' });
+      const rData = await rRes.json();
+      setReviews(Array.isArray(rData) ? rData : []);
     } catch {}
   };
 
@@ -275,6 +288,28 @@ export default function StoreAdminPage() {
                 </button>
                 <button
                   onClick={() => {
+                    setTab('customers');
+                    setView('list');
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold ${
+                    tab === 'customers' ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <Store className="w-4 h-4" /> Customers
+                </button>
+                <button
+                  onClick={() => {
+                    setTab('reviews');
+                    setView('list');
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold ${
+                    tab === 'reviews' ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <MessageSquare className="w-4 h-4" /> Reviews
+                </button>
+                <button
+                  onClick={() => {
                     setTab('settings');
                     setView('list');
                   }}
@@ -374,6 +409,69 @@ export default function StoreAdminPage() {
             {tab === 'settings' && (
               <div className="bg-white rounded-2xl border border-gray-200 p-6 text-sm text-gray-600">
                 Opening settings…
+              </div>
+            )}
+
+            {tab === 'customers' && (
+              <Customers
+                customers={customers}
+                onUpdateCustomer={async (cust) => {
+                  await fetch(`/api/store/${encodeURIComponent(store)}/customers`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(cust),
+                  });
+                  setCustomers((prev) => prev.map((c) => (c.id === cust.id ? cust : c)));
+                }}
+              />
+            )}
+
+            {tab === 'reviews' && (
+              <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <div className="text-sm font-extrabold text-gray-900">Reviews</div>
+                  <div className="text-xs text-gray-500">{reviews.length} total</div>
+                </div>
+                {reviews.length === 0 ? (
+                  <div className="p-10 text-center text-gray-600">
+                    <MessageSquare className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                    <div className="text-sm font-semibold">No reviews yet</div>
+                    <div className="text-xs text-gray-500 mt-1">Reviews are generated on first product view (Demo) or collected from customers (future).</div>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-100">
+                    {reviews.slice(0, 50).map((r) => (
+                      <div key={r.id} className="px-6 py-4 flex items-start justify-between gap-6">
+                        <div className="min-w-0">
+                          <div className="text-sm font-extrabold text-gray-900">{r.authorName}</div>
+                          <div className="text-xs text-gray-500 mt-0.5">
+                            {r.productTitle ? `${r.productTitle}` : 'Product'} • {new Date(r.createdAt).toLocaleDateString()} • {r.source}
+                          </div>
+                          <div className="mt-2 text-sm font-semibold text-gray-900">{r.title}</div>
+                          <div className="mt-1 text-sm text-gray-700 leading-relaxed">{r.body}</div>
+                        </div>
+                        <button
+                          className="shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 text-gray-700 text-xs font-semibold hover:bg-gray-50"
+                          onClick={async () => {
+                            const next = (r.visibility || 'VISIBLE') === 'VISIBLE' ? 'HIDDEN' : 'VISIBLE';
+                            const res = await fetch(`/api/store/${encodeURIComponent(store)}/reviews`, {
+                              method: 'PUT',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ productId: r.productId, reviewId: r.id, visibility: next }),
+                            });
+                            const updated = await res.json().catch(() => null);
+                            if (updated && !updated.error) {
+                              setReviews((prev) => prev.map((x) => (x.id === r.id ? { ...x, ...updated } : x)));
+                            }
+                          }}
+                        >
+                          {(r.visibility || 'VISIBLE') === 'VISIBLE' ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          {(r.visibility || 'VISIBLE') === 'VISIBLE' ? 'Hide' : 'Show'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
