@@ -1,6 +1,12 @@
 import { GoogleGenerativeAI, SchemaType, FunctionDeclarationSchemaType } from "@google/generative-ai";
 import { VisionResult, StoreConfig } from "../types.ts";
 
+const GEMINI_MODEL_ID =
+  (typeof process !== "undefined" && process.env?.GEMINI_MODEL_ID) ||
+  // @ts-ignore
+  (typeof window !== "undefined" && window.process?.env?.GEMINI_MODEL_ID) ||
+  "gemini-flash-latest";
+
 // Helper to safely access env vars
 const getApiKey = () => {
   try {
@@ -73,7 +79,7 @@ export const generateStoreTheme = async (prompt: string): Promise<StoreConfig['t
 
   try {
     const model = ai.getGenerativeModel({ 
-      model: "gemini-1.5-flash",
+      model: GEMINI_MODEL_ID,
       generationConfig: {
         responseMimeType: "application/json",
       }
@@ -144,7 +150,7 @@ export const generateProductFromImage = async (base64Image: string, mimeType: st
 
     try {
       const model = ai.getGenerativeModel({ 
-        model: "gemini-1.5-flash",
+        model: GEMINI_MODEL_ID,
         generationConfig: {
           responseMimeType: "application/json",
         }
@@ -207,7 +213,7 @@ export const generateLegalDocs = async (companyName: string, country: string, ad
 
   try {
     const model = ai.getGenerativeModel({ 
-      model: "gemini-1.5-flash",
+      model: GEMINI_MODEL_ID,
       generationConfig: {
         responseMimeType: "application/json",
       }
@@ -228,7 +234,7 @@ export const generateEmailDraft = async (customerName: string, emailBody: string
   if (!ai) return `[MOCK DRAFT] Hi ${customerName},\n\nThank you for your email. This is a simulated response in a ${tone} tone.\n\nBest regards,\nEzshopia Support`;
 
   try {
-    const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = ai.getGenerativeModel({ model: GEMINI_MODEL_ID });
     const result = await model.generateContent(`Reply to ${customerName}: "${emailBody}". Tone: ${tone}.`);
     const response = await result.response;
     return response.text() || "";
@@ -245,7 +251,7 @@ export const generateReviewReply = async (customerName: string, rating: number, 
   if (!ai) return `Hi ${customerName}, thanks for your ${rating}-star review! (Mock Reply)`;
 
   try {
-    const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = ai.getGenerativeModel({ model: GEMINI_MODEL_ID });
     const result = await model.generateContent(`Reply to review. Customer: ${customerName}, Rating: ${rating}, Comment: ${comment}`);
     const response = await result.response;
     return response.text() || "";
@@ -268,7 +274,7 @@ export const analyzeCustomerSegment = async (name: string, spent: number, orderC
 
   try {
     const model = ai.getGenerativeModel({ 
-      model: "gemini-1.5-flash",
+      model: GEMINI_MODEL_ID,
       generationConfig: {
         responseMimeType: "application/json",
       }
@@ -289,7 +295,7 @@ export const generateMarketingStrategy = async (products: any[]) => {
   if (!ai) return "<h3>Mock Strategy</h3><p>1. Target Audience: Everyone.</p><p>2. Ad Copy: Buy Now!</p><p>3. Budget: $100/day</p>";
 
   try {
-    const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = ai.getGenerativeModel({ model: GEMINI_MODEL_ID });
     const result = await model.generateContent(`Create marketing strategy HTML for ${products.length} products.`);
     const response = await result.response;
     return response.text() || "";

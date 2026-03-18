@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+const GEMINI_MODEL_ID = process.env.GEMINI_MODEL_ID || 'gemini-flash-latest';
+
 export async function POST(request: NextRequest) {
   try {
     const apiKey = process.env.API_KEY;
@@ -23,7 +25,7 @@ export async function POST(request: NextRequest) {
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: GEMINI_MODEL_ID,
       generationConfig: {
         responseMimeType: 'application/json',
       },

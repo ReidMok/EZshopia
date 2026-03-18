@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+const GEMINI_MODEL_ID = process.env.GEMINI_MODEL_ID || 'gemini-flash-latest';
+
 export async function GET() {
   try {
     const apiKey = process.env.API_KEY;
@@ -20,7 +22,7 @@ export async function GET() {
     // Test if API Key is valid by making a simple request
     try {
       const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const model = genAI.getGenerativeModel({ model: GEMINI_MODEL_ID });
       
       const result = await model.generateContent('Say "OK" if you can read this.');
       const response = await result.response;
