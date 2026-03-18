@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import Link from 'next/link';
 import { Product, StoreConfig } from '../types.ts';
 import { ShoppingBag, Star, Menu, Search, X, Instagram, Facebook, Twitter, ArrowRight } from 'lucide-react';
 
@@ -9,7 +10,7 @@ interface StorefrontProps {
 }
 
 const Storefront: React.FC<StorefrontProps> = ({ products, config, onExit }) => {
-  const activeProducts = products.filter(p => p.status === 'ACTIVE');
+  const activeProducts = useMemo(() => products.filter(p => p.status === 'ACTIVE'), [products]);
 
   return (
     <div className="min-h-screen flex flex-col font-sans" style={{ fontFamily: config.theme.fontFamily }}>
@@ -117,10 +118,14 @@ const Storefront: React.FC<StorefrontProps> = ({ products, config, onExit }) => 
                 <div className="mt-4 flex justify-between">
                     <div>
                     <h3 className="text-sm text-gray-700">
-                        <a href="#">
-                        <span aria-hidden="true" className="absolute inset-0" />
-                        {product.title}
-                        </a>
+                        <Link
+                          href={`/products/${encodeURIComponent(product.slug || '')}`}
+                          className="text-left hover:underline"
+                          style={{ textDecorationColor: config.theme.primaryColor }}
+                        >
+                          <span aria-hidden="true" className="absolute inset-0" />
+                          {product.title}
+                        </Link>
                     </h3>
                     <p className="mt-1 text-sm text-gray-500 capitalize">{product.tags[0] || 'General'}</p>
                     </div>

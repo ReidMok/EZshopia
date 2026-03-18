@@ -18,14 +18,15 @@ const AiProductCreator: React.FC<AiProductCreatorProps> = ({ onSave, onCancel })
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      const previewUrl = URL.createObjectURL(file);
-      setImagePreview(previewUrl);
       setError(null);
       
       // Auto start processing
       setStep('processing');
       try {
         const base64Data = await fileToGenerativePart(file);
+        // Use data URL so it survives localStorage + page reloads (objectURL would break)
+        const dataUrl = `data:${file.type};base64,${base64Data}`;
+        setImagePreview(dataUrl);
         const result = await generateProductFromImage(base64Data, file.type);
         setGeneratedData(result);
         setStep('review');
