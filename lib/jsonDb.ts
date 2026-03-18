@@ -3,10 +3,20 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { Product, ProductStatus, PublicReview, StoreConfig } from '../types';
 
-export type DbShape = {
+export type StoreData = {
   storeConfig: StoreConfig;
   products: Product[];
+};
+
+export type DbShape = {
+  // Multi-tenant stores keyed by storeKey (subdomain)
+  stores?: Record<string, StoreData>;
+  // Reviews keyed by productId (globally unique per DB)
   publicReviews?: Record<string, PublicReview[]>;
+
+  // Legacy single-store fields (kept for backward compatibility)
+  storeConfig?: StoreConfig;
+  products?: Product[];
 };
 
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -50,13 +60,31 @@ async function readDb(): Promise<DbShape> {
   try {
     const raw = await fs.readFile(DB_PATH, 'utf8');
     const parsed = JSON.parse(raw) as Partial<DbShape>;
+    const legacyStoreConfig = (parsed as any).storeConfig as StoreConfig | undefined;
+    const legacyProducts = Array.isArray((parsed as any).products) ? ((parsed as any).products as Product[]) : [];
+
+    const stores = parsed.stores || {};
+    // Migrate legacy root fields into demo store if no stores exist yet
+    if (Object.keys(stores).length === 0) {
+      stores.demo = {
+        storeConfig: legacyStoreConfig || DEFAULT_CONFIG,
+        products: legacyProducts,
+      };
+    }
+
     return {
-      storeConfig: parsed.storeConfig || DEFAULT_CONFIG,
-      products: Array.isArray(parsed.products) ? (parsed.products as Product[]) : [],
+      stores,
       publicReviews: parsed.publicReviews || {},
+      storeConfig: legacyStoreConfig,
+      products: legacyProducts,
     };
   } catch {
-    const init: DbShape = { storeConfig: DEFAULT_CONFIG, products: [], publicReviews: {} };
+    const init: DbShape = {
+      stores: { demo: { storeConfig: DEFAULT_CONFIG, products: [] } },
+      publicReviews: {},
+      storeConfig: DEFAULT_CONFIG,
+      products: [],
+    };
     await writeDb(init);
     return init;
   }
@@ -69,41 +97,124 @@ async function writeDb(db: DbShape) {
   await fs.rename(tmp, DB_PATH);
 }
 
+function titleCase(input: string) {
+  return input
+    .split(/[-_ ]+/g)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+async function ensureStore(db: DbShape, storeKey: string) {
+  db.stores = db.stores || {};
+  if (db.stores[storeKey]) return db.stores[storeKey];
+
+  const base = DEFAULT_CONFIG;
+  const created: StoreData = {
+    storeConfig: {
+      ...base,
+      id: `store_${storeKey}`,
+      name: `${titleCase(storeKey)} Store`,
+      subdomain: storeKey,
+    },
+    products: [],
+  };
+  db.stores[storeKey] = created;
+  // legacy mirror for demo
+  if (storeKey === 'demo') {
+    db.storeConfig = created.storeConfig;
+    db.products = created.products;
+  }
+  await writeDb(db);
+  return created;
+}
+
 export async function getBootstrap() {
   const db = await readDb();
-  return db;
+  const demo = (db.stores?.demo) || (await ensureStore(db, 'demo'));
+  return {
+    storeConfig: demo?.storeConfig || DEFAULT_CONFIG,
+    products: demo?.products || [],
+  };
+}
+
+export async function getStoreBootstrap(storeKey: string) {
+  const db = await readDb();
+  const store = await ensureStore(db, storeKey);
+  return store;
 }
 
 export async function getStoreConfig() {
   const db = await readDb();
-  return db.storeConfig;
+  const demo = db.stores?.demo;
+  return demo?.storeConfig || DEFAULT_CONFIG;
+}
+
+export async function getStoreConfigByKey(storeKey: string) {
+  const db = await readDb();
+  const store = await ensureStore(db, storeKey);
+  return store.storeConfig;
 }
 
 export async function updateStoreConfig(patch: Partial<StoreConfig>) {
   const db = await readDb();
-  db.storeConfig = { ...db.storeConfig, ...patch, theme: { ...db.storeConfig.theme, ...(patch.theme || {}) } };
+  db.stores = db.stores || {};
+  db.stores.demo = db.stores.demo || { storeConfig: DEFAULT_CONFIG, products: [] };
+  const prev = db.stores.demo.storeConfig;
+  db.stores.demo.storeConfig = { ...prev, ...patch, theme: { ...prev.theme, ...(patch.theme || {}) } };
+  // keep legacy mirror
+  db.storeConfig = db.stores.demo.storeConfig;
   await writeDb(db);
-  return db.storeConfig;
+  return db.stores.demo.storeConfig;
+}
+
+export async function updateStoreConfigByKey(storeKey: string, patch: Partial<StoreConfig>) {
+  const db = await readDb();
+  const existing = await ensureStore(db, storeKey);
+  const prev = existing.storeConfig;
+  existing.storeConfig = { ...prev, ...patch, theme: { ...prev.theme, ...(patch.theme || {}) } };
+  db.stores[storeKey] = existing;
+  // If demo store, keep legacy mirror
+  if (storeKey === 'demo') db.storeConfig = existing.storeConfig;
+  await writeDb(db);
+  return existing.storeConfig;
 }
 
 export async function listProducts() {
   const db = await readDb();
-  return db.products;
+  return db.stores?.demo?.products || [];
+}
+
+export async function listProductsForStore(storeKey: string) {
+  const db = await readDb();
+  const store = await ensureStore(db, storeKey);
+  return store.products;
 }
 
 export async function getProductById(id: string) {
   const db = await readDb();
-  return db.products.find((p) => p.id === id) || null;
+  const stores = db.stores || {};
+  for (const key of Object.keys(stores)) {
+    const found = stores[key].products.find((p) => p.id === id);
+    if (found) return found;
+  }
+  return null;
 }
 
 export async function getProductBySlug(slug: string) {
   const db = await readDb();
-  return db.products.find((p) => p.slug === slug) || null;
+  return db.stores?.demo?.products.find((p) => p.slug === slug) || null;
+}
+
+export async function getProductBySlugForStore(storeKey: string, slug: string) {
+  const db = await readDb();
+  const store = await ensureStore(db, storeKey);
+  return store.products.find((p) => p.slug === slug) || null;
 }
 
 async function ensureUniqueSlug(base: string) {
   const db = await readDb();
-  const existing = new Set(db.products.map((p) => p.slug));
+  const existing = new Set((db.stores?.demo?.products || []).map((p) => p.slug));
   if (!existing.has(base)) return base;
   let i = 2;
   while (existing.has(`${base}-${i}`)) i += 1;
@@ -111,15 +222,30 @@ async function ensureUniqueSlug(base: string) {
 }
 
 export async function createProduct(partial: Partial<Product>) {
+  return createProductForStore('demo', partial);
+}
+
+async function ensureUniqueSlugForStore(storeKey: string, base: string) {
   const db = await readDb();
+  const existing = new Set((db.stores?.[storeKey]?.products || []).map((p) => p.slug));
+  if (!existing.has(base)) return base;
+  let i = 2;
+  while (existing.has(`${base}-${i}`)) i += 1;
+  return `${base}-${i}`;
+}
+
+export async function createProductForStore(storeKey: string, partial: Partial<Product>) {
+  const db = await readDb();
+  const store = await ensureStore(db, storeKey);
+
   const now = new Date().toISOString();
   const title = (partial.title || 'Untitled').toString();
   const baseSlug = slugify(partial.slug || title);
-  const slug = await ensureUniqueSlug(baseSlug);
+  const slug = await ensureUniqueSlugForStore(storeKey, baseSlug);
 
   const product: Product = {
     id: crypto.randomBytes(6).toString('hex'),
-    storeId: db.storeConfig.id,
+    storeId: store.storeConfig.id,
     title,
     slug,
     descriptionHtml: partial.descriptionHtml || '',
@@ -134,7 +260,9 @@ export async function createProduct(partial: Partial<Product>) {
     updatedAt: now,
   };
 
-  db.products = [product, ...db.products];
+  store.products = [product, ...store.products];
+  db.stores[storeKey] = store;
+  if (storeKey === 'demo') db.products = store.products; // legacy mirror
   await writeDb(db);
   return product;
 }
@@ -219,7 +347,7 @@ export async function getOrCreatePublicReviews(productId: string) {
   const existing = db.publicReviews[productId];
   if (existing && existing.length > 0) return existing;
 
-  const product = db.products.find((p) => p.id === productId);
+  const product = await getProductById(productId);
   if (!product) return [];
 
   const count = Math.min(12, Math.max(5, Math.floor((product.title.length % 8) + 5)));
@@ -231,26 +359,31 @@ export async function getOrCreatePublicReviews(productId: string) {
 
 export async function updateProductById(id: string, patch: Partial<Product>) {
   const db = await readDb();
-  const idx = db.products.findIndex((p) => p.id === id);
-  if (idx < 0) return null;
+  const stores = db.stores || {};
+  for (const key of Object.keys(stores)) {
+    const idx = stores[key].products.findIndex((p) => p.id === id);
+    if (idx < 0) continue;
 
-  const prev = db.products[idx];
-  const next: Product = {
-    ...prev,
-    ...patch,
-    updatedAt: new Date().toISOString(),
-  };
+    const prev = stores[key].products[idx];
+    const next: Product = {
+      ...prev,
+      ...patch,
+      updatedAt: new Date().toISOString(),
+    };
 
-  // Keep slug stable unless explicitly provided; if provided, ensure uniqueness
-  if (patch.slug && patch.slug !== prev.slug) {
-    const baseSlug = slugify(patch.slug);
-    next.slug = await ensureUniqueSlug(baseSlug);
-  } else {
-    next.slug = prev.slug;
+    if (patch.slug && patch.slug !== prev.slug) {
+      const baseSlug = slugify(patch.slug);
+      next.slug = await ensureUniqueSlugForStore(key, baseSlug);
+    } else {
+      next.slug = prev.slug;
+    }
+
+    stores[key].products[idx] = next;
+    db.stores = stores;
+    if (key === 'demo') db.products = stores[key].products; // legacy mirror
+    await writeDb(db);
+    return next;
   }
-
-  db.products[idx] = next;
-  await writeDb(db);
-  return next;
+  return null;
 }
 

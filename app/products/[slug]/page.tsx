@@ -28,12 +28,39 @@ function safeDecodeURIComponent(value: string) {
   }
 }
 
+function storeKeyFromHostname(hostname: string) {
+  const host = hostname.split(':')[0].toLowerCase();
+  if (host.endsWith('.ezshopia.com')) {
+    const sub = host.slice(0, -'.ezshopia.com'.length);
+    if (!sub || sub === 'www' || sub === 'admin') return null;
+    return sub.split('.')[0];
+  }
+  if (host.endsWith('.localhost')) {
+    const sub = host.slice(0, -'.localhost'.length);
+    if (!sub || sub === 'admin') return null;
+    return sub.split('.')[0];
+  }
+  return null;
+}
+
 export default function ProductDetailPage() {
   const params = useParams();
   const slug = useMemo(() => {
     const raw = (params as any)?.slug as string | string[] | undefined;
     const joined = Array.isArray(raw) ? raw.join('/') : raw || '';
     return safeDecodeURIComponent(joined);
+  }, [params]);
+
+  const storeKey = useMemo(() => {
+    const raw = (params as any)?.store as string | string[] | undefined;
+    const joined = Array.isArray(raw) ? raw.join('/') : raw || '';
+    const decoded = safeDecodeURIComponent(joined);
+    if (decoded) return decoded;
+    if (typeof window !== 'undefined') {
+      const fromHost = storeKeyFromHostname(window.location.hostname);
+      if (fromHost) return fromHost;
+    }
+    return 'demo';
   }, [params]);
 
   const [state, setState] = useState<LoadedState>({ status: 'loading' });
@@ -45,9 +72,9 @@ export default function ProductDetailPage() {
     let cancelled = false;
     const run = async () => {
       try {
-        const res = await fetch(`/api/products/slug/${encodeURIComponent(slug)}`, { cache: 'no-store' });
+        const res = await fetch(`/api/store/${encodeURIComponent(storeKey)}/products/slug/${encodeURIComponent(slug)}`, { cache: 'no-store' });
         const product = (await res.json().catch(() => null)) as Product | null;
-        const configRes = await fetch('/api/store-config', { cache: 'no-store' });
+        const configRes = await fetch(`/api/store/${encodeURIComponent(storeKey)}/store-config`, { cache: 'no-store' });
         const config = (await configRes.json().catch(() => null)) as StoreConfig | null;
         if (cancelled) return;
         if (!product || (product as any).error) {
@@ -72,7 +99,7 @@ export default function ProductDetailPage() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [slug]);
+  }, [slug, storeKey]);
 
   if (state.status === 'loading') {
     return (

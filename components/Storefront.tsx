@@ -31,15 +31,15 @@ const Storefront: React.FC<StorefrontProps> = ({ products, config, onExit }) => 
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <Menu className="h-6 w-6 text-gray-500 md:hidden mr-4" />
-              <a href="/store" className="text-lg sm:text-2xl font-extrabold tracking-tight" style={{ color: secondary }}>
+              <a href="./" className="text-lg sm:text-2xl font-extrabold tracking-tight" style={{ color: secondary }}>
                 {config.name}
               </a>
             </div>
             
             <div className="hidden md:flex space-x-8">
-              <a href="/store" className="text-gray-900 hover:text-gray-500 font-semibold text-sm">Shop</a>
-              <a href="/store" className="text-gray-900 hover:text-gray-500 font-semibold text-sm">New</a>
-              <a href="/store" className="text-gray-900 hover:text-gray-500 font-semibold text-sm">About</a>
+              <a href="./#products" className="text-gray-900 hover:text-gray-500 font-semibold text-sm">Shop</a>
+              <a href="./#products" className="text-gray-900 hover:text-gray-500 font-semibold text-sm">New</a>
+              <a href="./#products" className="text-gray-900 hover:text-gray-500 font-semibold text-sm">About</a>
             </div>
 
             <div className="flex items-center space-x-4">
@@ -74,7 +74,7 @@ const Storefront: React.FC<StorefrontProps> = ({ products, config, onExit }) => 
                 </p>
                 <div className="mt-7 flex flex-col sm:flex-row gap-3">
                   <a
-                    href="/store#products"
+                    href="#products"
                     className="inline-flex items-center justify-center px-6 py-3 rounded-full text-sm font-semibold text-white shadow-sm"
                     style={{ backgroundColor: primary }}
                   >
@@ -82,7 +82,7 @@ const Storefront: React.FC<StorefrontProps> = ({ products, config, onExit }) => 
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </a>
                   <a
-                    href="/store#products"
+                    href="#products"
                     className="inline-flex items-center justify-center px-6 py-3 rounded-full text-sm font-semibold border border-gray-300 text-gray-900 hover:bg-gray-50"
                   >
                     Browse best sellers
@@ -133,7 +133,7 @@ const Storefront: React.FC<StorefrontProps> = ({ products, config, onExit }) => 
             <h2 className="text-2xl font-extrabold tracking-tight text-gray-900">Featured products</h2>
             <p className="mt-1 text-sm text-gray-600">Clean, Shopify-style cards with real product pages.</p>
           </div>
-          <a href="/store#products" className="text-sm font-semibold hover:underline flex items-center" style={{ color: primary }}>
+          <a href="#products" className="text-sm font-semibold hover:underline flex items-center" style={{ color: primary }}>
             View all <ArrowRight className="w-4 h-4 ml-1" />
           </a>
         </div>
@@ -149,7 +149,7 @@ const Storefront: React.FC<StorefrontProps> = ({ products, config, onExit }) => 
             {activeProducts.map((product) => (
               <div key={product.id} className="group">
                 <div className="relative">
-                  <a href={`/products/${encodeURIComponent(product.slug || '')}`} className="block">
+                  <a href={`products/${encodeURIComponent(product.slug || '')}`} className="block">
                     <div className="aspect-[4/5] bg-gray-100 rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
                       <img
                         src={product.images[0] || 'https://via.placeholder.com/800'}
@@ -178,7 +178,7 @@ const Storefront: React.FC<StorefrontProps> = ({ products, config, onExit }) => 
 
                 <div className="mt-4">
                   <a
-                    href={`/products/${encodeURIComponent(product.slug || '')}`}
+                    href={`products/${encodeURIComponent(product.slug || '')}`}
                     className="block text-sm font-semibold text-gray-900 hover:underline underline-offset-4"
                     style={{ textDecorationColor: primary }}
                   >
