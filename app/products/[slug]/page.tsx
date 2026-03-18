@@ -39,13 +39,14 @@ export default function ProductDetailPage() {
 
   useEffect(() => {
     let cancelled = false;
-    const run = () => {
+    const run = async () => {
       try {
-        const products = safeParseJson<Product[]>(localStorage.getItem('ezshopia_products')) || [];
-        const config = safeParseJson<StoreConfig>(localStorage.getItem('ezshopia_config'));
-        const product = products.find((p) => p.slug === slug);
+        const res = await fetch(`/api/products/slug/${encodeURIComponent(slug)}`, { cache: 'no-store' });
+        const product = (await res.json().catch(() => null)) as Product | null;
+        const configRes = await fetch('/api/store-config', { cache: 'no-store' });
+        const config = (await configRes.json().catch(() => null)) as StoreConfig | null;
         if (cancelled) return;
-        if (!product) {
+        if (!product || (product as any).error) {
           setState({ status: 'not_found' });
           return;
         }

@@ -94,31 +94,44 @@ const App: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>(INITIAL_CUSTOMERS);
   const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
 
-  // Load from localStorage safely
+  // Load from server (shareable), fall back to localStorage
   useEffect(() => {
-    try {
-      console.log("App Mounting...");
-      const savedProducts = localStorage.getItem('ezshopia_products');
-      if (savedProducts) setProducts(JSON.parse(savedProducts));
+    const run = async () => {
+      try {
+        console.log("App Mounting...");
+        const res = await fetch('/api/bootstrap', { cache: 'no-store' });
+        const data = await res.json();
+        if (Array.isArray(data.products)) setProducts(data.products);
+        if (data.storeConfig) setStoreConfig(data.storeConfig);
+      } catch (e) {
+        try {
+          const savedProducts = localStorage.getItem('ezshopia_products');
+          if (savedProducts) setProducts(JSON.parse(savedProducts));
 
-      const savedConfig = localStorage.getItem('ezshopia_config');
-      if (savedConfig) setStoreConfig(JSON.parse(savedConfig));
+          const savedConfig = localStorage.getItem('ezshopia_config');
+          if (savedConfig) setStoreConfig(JSON.parse(savedConfig));
+        } catch (error: any) {
+          console.error('Failed to load storage:', error);
+          setMountError(error.message);
+        }
+      }
 
-      const savedEmails = localStorage.getItem('ezshopia_emails');
-      if (savedEmails) setEmails(JSON.parse(savedEmails));
+      // These demo modules still load from localStorage only for now
+      try {
+        const savedEmails = localStorage.getItem('ezshopia_emails');
+        if (savedEmails) setEmails(JSON.parse(savedEmails));
 
-      const savedReviews = localStorage.getItem('ezshopia_reviews');
-      if (savedReviews) setReviews(JSON.parse(savedReviews));
+        const savedReviews = localStorage.getItem('ezshopia_reviews');
+        if (savedReviews) setReviews(JSON.parse(savedReviews));
 
-      const savedCustomers = localStorage.getItem('ezshopia_customers');
-      if (savedCustomers) setCustomers(JSON.parse(savedCustomers));
+        const savedCustomers = localStorage.getItem('ezshopia_customers');
+        if (savedCustomers) setCustomers(JSON.parse(savedCustomers));
 
-      const savedOrders = localStorage.getItem('ezshopia_orders');
-      if (savedOrders) setOrders(JSON.parse(savedOrders));
-    } catch (error: any) {
-      console.error('Failed to load storage:', error);
-      setMountError(error.message);
-    }
+        const savedOrders = localStorage.getItem('ezshopia_orders');
+        if (savedOrders) setOrders(JSON.parse(savedOrders));
+      } catch {}
+    };
+    run();
   }, []);
 
   // Persist effects
@@ -132,27 +145,25 @@ const App: React.FC = () => {
   // Handlers
   const handleUpdateStoreConfig = (newConfig: Partial<StoreConfig>) => {
     setStoreConfig(prev => ({ ...prev, ...newConfig }));
+    fetch('/api/store-config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newConfig),
+    }).catch(() => {});
   };
 
-  const handleSaveProduct = (partialProduct: Partial<Product>) => {
-    const newProduct: Product = {
-      id: Math.random().toString(36).substr(2, 9),
-      storeId: storeConfig.id,
-      title: partialProduct.title || 'Untitled',
-      slug: (partialProduct.title || 'untitled').toLowerCase().replace(/\s+/g, '-'),
-      descriptionHtml: partialProduct.descriptionHtml || '',
-      price: partialProduct.price || 0,
-      images: partialProduct.images || [],
-      status: ProductStatus.DRAFT,
-      seoTitle: partialProduct.seoTitle || '',
-      seoDescription: partialProduct.seoDescription || '',
-      tags: partialProduct.tags || [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      ...partialProduct
-    };
-
-    setProducts([newProduct, ...products]);
+  const handleSaveProduct = async (partialProduct: Partial<Product>) => {
+    try {
+      const res = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(partialProduct),
+      });
+      const created = await res.json();
+      if (created && !created.error) {
+        setProducts((prev) => [created, ...prev]);
+      }
+    } catch {}
     setIsCreating(false);
   };
 
@@ -164,9 +175,16 @@ const App: React.FC = () => {
       setReviews(reviews.map(r => r.id === updatedReview.id ? updatedReview : r));
   }
 
-  const handleUpdateProduct = (updatedProduct: Product) => {
+  const handleUpdateProduct = async (updatedProduct: Product) => {
       setProducts(products.map(p => p.id === updatedProduct.id ? updatedProduct : p));
       setEditingProduct(null);
+      try {
+        await fetch(`/api/products/${encodeURIComponent(updatedProduct.id)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedProduct),
+        });
+      } catch {}
   };
 
   const handleUpdateCustomer = (updatedCustomer: Customer) => {
