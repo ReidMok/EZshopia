@@ -115,6 +115,21 @@ export interface Review {
   reply?: string;
 }
 
+/**
+ * Public, customer-facing reviews (demo-friendly).
+ * IMPORTANT: These can be demo-generated; don't present them as verified purchases unless true.
+ */
+export interface PublicReview {
+  id: string;
+  productId: string;
+  authorName: string;
+  rating: number; // 1-5
+  title: string;
+  body: string;
+  createdAt: string; // ISO
+  source: 'DEMO' | 'REAL';
+}
+
 export interface Workflow {
   id: string;
   name: string;

@@ -3,13 +3,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import type { Product, StoreConfig } from '../../../types';
+import type { Product, PublicReview, StoreConfig } from '../../../types';
 import { ChevronRight, Minus, Plus, ShieldCheck, Truck, RotateCcw, Star } from 'lucide-react';
 
 type LoadedState =
   | { status: 'loading' }
   | { status: 'not_found' }
-  | { status: 'ready'; product: Product; config: StoreConfig | null };
+  | { status: 'ready'; product: Product; config: StoreConfig | null; reviews: PublicReview[] };
 
 function safeParseJson<T>(value: string | null): T | null {
   if (!value) return null;
@@ -54,7 +54,9 @@ export default function ProductDetailPage() {
           setState({ status: 'not_found' });
           return;
         }
-        setState({ status: 'ready', product, config });
+        const reviewsRes = await fetch(`/api/reviews/${encodeURIComponent(product.id)}`, { cache: 'no-store' });
+        const reviews = (await reviewsRes.json().catch(() => [])) as PublicReview[];
+        setState({ status: 'ready', product, config, reviews: Array.isArray(reviews) ? reviews : [] });
       } catch {
         if (!cancelled) setState({ status: 'not_found' });
       }
@@ -110,7 +112,7 @@ export default function ProductDetailPage() {
     );
   }
 
-  const { product, config } = state;
+  const { product, config, reviews: publicReviews } = state;
   const currency = config?.currency || 'USD';
   const symbol = currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '$';
   const primary = config?.theme?.primaryColor || '#2563eb';
@@ -119,8 +121,11 @@ export default function ProductDetailPage() {
   const activeImage = images[Math.min(activeImageIdx, images.length - 1)];
 
   const money = (n: number) => `${symbol}${n.toFixed(2)}`;
-  const rating = 4.8;
-  const reviews = 124;
+  const reviewsCount = publicReviews.length;
+  const rating =
+    reviewsCount === 0
+      ? 0
+      : publicReviews.reduce((sum, r) => sum + (Number(r.rating) || 0), 0) / Math.max(1, reviewsCount);
 
   return (
     <div className="min-h-screen bg-white">
@@ -201,8 +206,8 @@ export default function ProductDetailPage() {
               <div className="text-2xl font-extrabold text-gray-900">{money(product.price)}</div>
               <div className="flex items-center gap-1 text-sm text-gray-600">
                 <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                <span className="font-semibold text-gray-900">{rating.toFixed(1)}</span>
-                <span className="text-gray-500">({reviews} reviews)</span>
+                <span className="font-semibold text-gray-900">{rating ? rating.toFixed(1) : '—'}</span>
+                <span className="text-gray-500">({reviewsCount} reviews)</span>
               </div>
             </div>
 
@@ -339,6 +344,56 @@ export default function ProductDetailPage() {
                 className="prose prose-sm max-w-none text-gray-700"
                 dangerouslySetInnerHTML={{ __html: product.descriptionHtml || '<p>No description.</p>' }}
               />
+            </div>
+
+            {/* Reviews */}
+            <div className="mt-8 border-t border-gray-100 pt-6">
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <h2 className="text-sm font-extrabold text-gray-900">Reviews</h2>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Demo reviews are auto-generated to make the storefront feel realistic.
+                  </p>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm font-extrabold text-gray-900">{rating ? rating.toFixed(1) : '—'}</div>
+                  <div className="text-xs text-gray-500">{reviewsCount} reviews</div>
+                </div>
+              </div>
+
+              {publicReviews.length === 0 ? (
+                <div className="mt-4 text-sm text-gray-600">No reviews yet.</div>
+              ) : (
+                <div className="mt-4 space-y-4">
+                  {publicReviews.slice(0, 6).map((r) => (
+                    <div key={r.id} className="rounded-2xl border border-gray-200 p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <div className="text-sm font-extrabold text-gray-900">{r.authorName}</div>
+                          <div className="mt-1 flex items-center gap-2">
+                            <div className="flex items-center gap-0.5">
+                              {Array.from({ length: 5 }).map((_, i) => (
+                                <Star
+                                  key={i}
+                                  className={`w-4 h-4 ${i < r.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200'}`}
+                                />
+                              ))}
+                            </div>
+                            <div className="text-xs text-gray-500">{new Date(r.createdAt).toLocaleDateString()}</div>
+                            {r.source === 'DEMO' && (
+                              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200">
+                                DEMO
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-3 text-sm font-bold text-gray-900">{r.title}</div>
+                      <div className="mt-1 text-sm text-gray-700 leading-relaxed">{r.body}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -1,11 +1,12 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { Product, ProductStatus, StoreConfig } from '../types';
+import { Product, ProductStatus, PublicReview, StoreConfig } from '../types';
 
 export type DbShape = {
   storeConfig: StoreConfig;
   products: Product[];
+  publicReviews?: Record<string, PublicReview[]>;
 };
 
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -52,9 +53,10 @@ async function readDb(): Promise<DbShape> {
     return {
       storeConfig: parsed.storeConfig || DEFAULT_CONFIG,
       products: Array.isArray(parsed.products) ? (parsed.products as Product[]) : [],
+      publicReviews: parsed.publicReviews || {},
     };
   } catch {
-    const init: DbShape = { storeConfig: DEFAULT_CONFIG, products: [] };
+    const init: DbShape = { storeConfig: DEFAULT_CONFIG, products: [], publicReviews: {} };
     await writeDb(init);
     return init;
   }
@@ -135,6 +137,96 @@ export async function createProduct(partial: Partial<Product>) {
   db.products = [product, ...db.products];
   await writeDb(db);
   return product;
+}
+
+function mulberry32(seed: number) {
+  return function () {
+    let t = (seed += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function hashSeed(input: string) {
+  const h = crypto.createHash('sha256').update(input).digest();
+  return h.readUInt32LE(0);
+}
+
+function pick<T>(rng: () => number, arr: T[]) {
+  return arr[Math.floor(rng() * arr.length)];
+}
+
+function daysAgoIso(days: number) {
+  const d = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  return d.toISOString();
+}
+
+function generateDemoReviews(product: Product, count: number): PublicReview[] {
+  const seed = hashSeed(product.id + product.slug);
+  const rng = mulberry32(seed);
+
+  const firstNames = ['Ava', 'Mia', 'Noah', 'Liam', 'Emma', 'Olivia', 'Ethan', 'Sophia', 'Lucas', 'Amelia', 'Leo', 'Chloe'];
+  const lastInitials = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  const titles = [
+    'Beautiful craftsmanship',
+    'Looks even better in person',
+    'Great gift idea',
+    'Worth the price',
+    'Exactly what I wanted',
+    'Impressive quality',
+    'Super fast shipping',
+    'Stunning details',
+  ];
+  const bodies = [
+    'Packaging was solid and everything arrived safely. The finish looks premium and the product matches the photos.',
+    'The colors and details are gorgeous. I’ve had it on display for a week and friends keep asking where it’s from.',
+    'Bought this as a gift and it was a huge hit. The build quality is excellent and it feels very durable.',
+    'Quality exceeded expectations. It feels thoughtfully made and the overall design is really tasteful.',
+    'Arrived quickly and looks fantastic. Easy to set up and the size is perfect for my space.',
+    'The materials feel high-end and the workmanship is clean. I’m genuinely impressed.',
+  ];
+
+  const keyword = (product.tags?.[0] || '').toLowerCase();
+  const boostedBody =
+    keyword && keyword.length > 2
+      ? `Love the ${keyword} vibe — ` + pick(rng, bodies).toLowerCase()
+      : pick(rng, bodies);
+
+  const reviews: PublicReview[] = [];
+  for (let i = 0; i < count; i++) {
+    const ratingRoll = rng();
+    const rating = ratingRoll < 0.75 ? 5 : ratingRoll < 0.92 ? 4 : 3;
+    const name = `${pick(rng, firstNames)} ${pick(rng, lastInitials)}.`;
+    const createdAt = daysAgoIso(Math.floor(rng() * 60) + 2);
+    reviews.push({
+      id: crypto.randomBytes(6).toString('hex'),
+      productId: product.id,
+      authorName: name,
+      rating,
+      title: pick(rng, titles),
+      body: i === 0 ? boostedBody : pick(rng, bodies),
+      createdAt,
+      source: 'DEMO',
+    });
+  }
+  return reviews;
+}
+
+export async function getOrCreatePublicReviews(productId: string) {
+  const db = await readDb();
+  db.publicReviews = db.publicReviews || {};
+  const existing = db.publicReviews[productId];
+  if (existing && existing.length > 0) return existing;
+
+  const product = db.products.find((p) => p.id === productId);
+  if (!product) return [];
+
+  const count = Math.min(12, Math.max(5, Math.floor((product.title.length % 8) + 5)));
+  const generated = generateDemoReviews(product, count);
+  db.publicReviews[productId] = generated;
+  await writeDb(db);
+  return generated;
 }
 
 export async function updateProductById(id: string, patch: Partial<Product>) {
