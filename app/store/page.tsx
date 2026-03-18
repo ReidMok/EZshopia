@@ -51,6 +51,8 @@ export default function PublicStorePage() {
     <Storefront
       products={products}
       config={config}
+      storeKey="demo"
+      rootHrefOverride="/store"
       onExit={() => {
         window.location.href = '/';
       }}

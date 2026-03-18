@@ -55,6 +55,7 @@ export default function StorefrontByStore() {
     <Storefront
       products={products}
       config={config}
+      storeKey={store}
       onExit={() => {
         window.location.href = '/admin';
       }}

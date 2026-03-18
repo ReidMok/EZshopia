@@ -12,6 +12,7 @@ interface StorefrontProps {
   config: StoreConfig;
   onExit: () => void;
   storeKey?: string; // optional; when omitted, cart falls back to demo
+  rootHrefOverride?: string; // e.g. "/store" for legacy demo storefront
 }
 
 type CartItem = {
@@ -23,13 +24,19 @@ type CartItem = {
   slug?: string;
 };
 
-const Storefront: React.FC<StorefrontProps> = ({ products, config, onExit, storeKey = 'demo' }) => {
+const Storefront: React.FC<StorefrontProps> = ({ products, config, onExit, storeKey = 'demo', rootHrefOverride }) => {
   const activeProducts = useMemo(() => products.filter(p => p.status === 'ACTIVE'), [products]);
   const primary = config.theme.primaryColor;
   const secondary = config.theme.secondaryColor;
   const cartStorageKey = `ezshopia_cart_${storeKey}`;
   const [cartOpen, setCartOpen] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
+
+  const isPathMode = typeof window !== 'undefined' && window.location.pathname.startsWith('/s/');
+  const routePrefix = isPathMode ? `/s/${encodeURIComponent(storeKey)}` : '';
+  const storeRootHref = rootHrefOverride || (isPathMode ? routePrefix : '/');
+  const productsHref = (slug: string) => `${routePrefix}/products/${encodeURIComponent(slug)}`;
+  const checkoutHref = `${routePrefix}/checkout`;
 
   useEffect(() => {
     try {
@@ -92,15 +99,15 @@ const Storefront: React.FC<StorefrontProps> = ({ products, config, onExit, store
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <Menu className="h-6 w-6 text-gray-500 md:hidden mr-4" />
-              <a href="./" className="text-lg sm:text-2xl font-extrabold tracking-tight" style={{ color: secondary }}>
+              <a href={storeRootHref} className="text-lg sm:text-2xl font-extrabold tracking-tight" style={{ color: secondary }}>
                 {config.name}
               </a>
             </div>
             
             <div className="hidden md:flex space-x-8">
-              <a href="./#products" className="text-gray-900 hover:text-gray-500 font-semibold text-sm">Shop</a>
-              <a href="./#products" className="text-gray-900 hover:text-gray-500 font-semibold text-sm">New</a>
-              <a href="./#products" className="text-gray-900 hover:text-gray-500 font-semibold text-sm">About</a>
+              <a href={`${storeRootHref}#products`} className="text-gray-900 hover:text-gray-500 font-semibold text-sm">Shop</a>
+              <a href={`${storeRootHref}#products`} className="text-gray-900 hover:text-gray-500 font-semibold text-sm">New</a>
+              <a href={`${storeRootHref}#products`} className="text-gray-900 hover:text-gray-500 font-semibold text-sm">About</a>
             </div>
 
             <div className="flex items-center space-x-4">
@@ -137,7 +144,7 @@ const Storefront: React.FC<StorefrontProps> = ({ products, config, onExit, store
                 </p>
                 <div className="mt-7 flex flex-col sm:flex-row gap-3">
                   <a
-                    href="#products"
+                    href={`${storeRootHref}#products`}
                     className="inline-flex items-center justify-center px-6 py-3 rounded-full text-sm font-semibold text-white shadow-sm"
                     style={{ backgroundColor: primary }}
                   >
@@ -145,7 +152,7 @@ const Storefront: React.FC<StorefrontProps> = ({ products, config, onExit, store
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </a>
                   <a
-                    href="#products"
+                    href={`${storeRootHref}#products`}
                     className="inline-flex items-center justify-center px-6 py-3 rounded-full text-sm font-semibold border border-gray-300 text-gray-900 hover:bg-gray-50"
                   >
                     Browse best sellers
@@ -196,7 +203,7 @@ const Storefront: React.FC<StorefrontProps> = ({ products, config, onExit, store
             <h2 className="text-2xl font-extrabold tracking-tight text-gray-900">Featured products</h2>
             <p className="mt-1 text-sm text-gray-600">Clean, Shopify-style cards with real product pages.</p>
           </div>
-          <a href="#products" className="text-sm font-semibold hover:underline flex items-center" style={{ color: primary }}>
+          <a href={`${storeRootHref}#products`} className="text-sm font-semibold hover:underline flex items-center" style={{ color: primary }}>
             View all <ArrowRight className="w-4 h-4 ml-1" />
           </a>
         </div>
@@ -212,7 +219,7 @@ const Storefront: React.FC<StorefrontProps> = ({ products, config, onExit, store
             {activeProducts.map((product) => (
               <div key={product.id} className="group">
                 <div className="relative">
-                  <a href={`products/${encodeURIComponent(product.slug || '')}`} className="block">
+                  <a href={productsHref(product.slug || '')} className="block">
                     <div className="aspect-[4/5] bg-gray-100 rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
                       <img
                         src={product.images[0] || 'https://via.placeholder.com/800'}
@@ -241,7 +248,7 @@ const Storefront: React.FC<StorefrontProps> = ({ products, config, onExit, store
 
                 <div className="mt-4">
                   <a
-                    href={`products/${encodeURIComponent(product.slug || '')}`}
+                    href={productsHref(product.slug || '')}
                     className="block text-sm font-semibold text-gray-900 hover:underline underline-offset-4"
                     style={{ textDecorationColor: primary }}
                   >
@@ -322,7 +329,10 @@ const Storefront: React.FC<StorefrontProps> = ({ products, config, onExit, store
                 <div className="space-y-4">
                   {cart.map((it) => (
                     <div key={it.productId} className="flex gap-4">
-                      <a href={it.slug ? `products/${encodeURIComponent(it.slug)}` : '#'} className="w-20 h-20 rounded-xl overflow-hidden bg-gray-100 border border-gray-200 shrink-0">
+                      <a
+                        href={it.slug ? productsHref(it.slug) : '#'}
+                        className="w-20 h-20 rounded-xl overflow-hidden bg-gray-100 border border-gray-200 shrink-0"
+                      >
                         {it.image ? <img src={it.image} alt="" className="w-full h-full object-cover" /> : null}
                       </a>
                       <div className="min-w-0 flex-1">
@@ -370,7 +380,7 @@ const Storefront: React.FC<StorefrontProps> = ({ products, config, onExit, store
                 <span className="text-gray-900 font-extrabold">{formatMoney(config.currency, subtotal)}</span>
               </div>
               <a
-                href="checkout"
+                href={checkoutHref}
                 className={`w-full inline-flex items-center justify-center px-5 py-3 rounded-xl text-white font-extrabold shadow-sm ${
                   cart.length === 0 ? 'opacity-50 pointer-events-none' : ''
                 }`}

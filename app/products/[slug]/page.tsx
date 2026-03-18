@@ -63,6 +63,27 @@ export default function ProductDetailPage() {
     return 'demo';
   }, [params]);
 
+  const storeRootHref = useMemo(() => {
+    const hasStoreParam = Boolean((params as any)?.store);
+    if (hasStoreParam) return `/s/${encodeURIComponent(storeKey)}`;
+    if (typeof window !== 'undefined') {
+      const fromHost = storeKeyFromHostname(window.location.hostname);
+      if (fromHost) return '/';
+    }
+    // Legacy demo storefront lives at /store
+    return '/store';
+  }, [params, storeKey]);
+
+  const checkoutHref = useMemo(() => {
+    const hasStoreParam = Boolean((params as any)?.store);
+    if (hasStoreParam) return `/s/${encodeURIComponent(storeKey)}/checkout`;
+    if (typeof window !== 'undefined') {
+      const fromHost = storeKeyFromHostname(window.location.hostname);
+      if (fromHost) return '/checkout';
+    }
+    return '/checkout';
+  }, [params, storeKey]);
+
   const [state, setState] = useState<LoadedState>({ status: 'loading' });
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [qty, setQty] = useState(1);
@@ -159,11 +180,11 @@ export default function ProductDetailPage() {
     <div className="min-h-screen bg-white">
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link href="/store" className="font-extrabold tracking-tight" style={{ color: secondary }}>
+          <Link href={storeRootHref} className="font-extrabold tracking-tight" style={{ color: secondary }}>
             {config?.name || 'Ezshopia Store'}
           </Link>
           <nav className="flex items-center gap-3">
-            <Link href="/store" className="text-sm font-semibold text-gray-700 hover:text-gray-900">
+            <Link href={storeRootHref} className="text-sm font-semibold text-gray-700 hover:text-gray-900">
               Shop
             </Link>
             <a
@@ -180,13 +201,13 @@ export default function ProductDetailPage() {
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
         {/* Breadcrumbs */}
         <div className="flex items-center gap-2 text-xs text-gray-500 mb-6">
-          <Link href="/store" className="hover:text-gray-900 font-semibold">
+          <Link href={storeRootHref} className="hover:text-gray-900 font-semibold">
             Home
           </Link>
           <ChevronRight className="w-3 h-3" />
-          <Link href="/store#products" className="hover:text-gray-900 font-semibold">
+          <a href={`${storeRootHref}#products`} className="hover:text-gray-900 font-semibold">
             Products
-          </Link>
+          </a>
           <ChevronRight className="w-3 h-3" />
           <span className="text-gray-700 font-semibold truncate">{product.title}</span>
         </div>
@@ -294,14 +315,14 @@ export default function ProductDetailPage() {
                         });
                       localStorage.setItem(cartStorageKey, JSON.stringify(cart));
                     } catch {}
-                    window.location.href = 'checkout';
+                    window.location.href = checkoutHref;
                   }}
                 >
                   Add to cart
                 </button>
 
                 <Link
-                  href="/store"
+                  href={storeRootHref}
                   className="px-6 py-3 rounded-xl border border-gray-300 text-gray-900 font-bold hover:bg-gray-50 text-center"
                 >
                   Back
@@ -473,7 +494,7 @@ export default function ProductDetailPage() {
                   });
                 localStorage.setItem(cartStorageKey, JSON.stringify(cart));
               } catch {}
-              window.location.href = 'checkout';
+              window.location.href = checkoutHref;
             }}
           >
             Add

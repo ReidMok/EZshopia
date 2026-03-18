@@ -47,6 +47,13 @@ export default function Checkout() {
     return 'demo';
   }, [params]);
 
+  const storeRootHref = useMemo(() => {
+    const hasStoreParam = Boolean((params as any)?.store);
+    if (hasStoreParam) return `/s/${encodeURIComponent(storeKey)}`;
+    if (typeof window !== 'undefined') return storeKeyFromHostname(window.location.hostname) ? '/' : '/store';
+    return '/store';
+  }, [params, storeKey]);
+
   const cartStorageKey = `ezshopia_cart_${storeKey}`;
 
   const [config, setConfig] = useState<StoreConfig | null>(null);
@@ -144,10 +151,10 @@ export default function Checkout() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-between mb-6">
-          <a href="./" className="text-lg font-extrabold text-gray-900">
+          <a href={storeRootHref} className="text-lg font-extrabold text-gray-900">
             {config?.name || `${storeKey} Store`}
           </a>
-          <a href="./" className="text-sm font-semibold text-gray-700 hover:text-gray-900">
+          <a href={storeRootHref} className="text-sm font-semibold text-gray-700 hover:text-gray-900">
             Back to store
           </a>
         </div>

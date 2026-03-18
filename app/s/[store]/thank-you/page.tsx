@@ -38,6 +38,20 @@ export default function ThankYou() {
     return 'demo';
   }, [params]);
 
+  const storeRootHref = useMemo(() => {
+    const hasStoreParam = Boolean((params as any)?.store);
+    if (hasStoreParam) return `/s/${encodeURIComponent(storeKey)}`;
+    if (typeof window !== 'undefined') return storeKeyFromHostname(window.location.hostname) ? '/' : '/store';
+    return '/store';
+  }, [params, storeKey]);
+
+  const merchantAdminHref = useMemo(() => {
+    const hasStoreParam = Boolean((params as any)?.store);
+    if (hasStoreParam) return `/s/${encodeURIComponent(storeKey)}/admin`;
+    if (typeof window !== 'undefined') return storeKeyFromHostname(window.location.hostname) ? '/admin' : `/s/${encodeURIComponent(storeKey)}/admin`;
+    return `/s/${encodeURIComponent(storeKey)}/admin`;
+  }, [params, storeKey]);
+
   const orderId = useMemo(() => {
     if (typeof window === 'undefined') return '';
     const u = new URL(window.location.href);
@@ -97,13 +111,13 @@ export default function ThankYou() {
 
         <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
           <a
-            href="./"
+            href={storeRootHref}
             className="px-5 py-3 rounded-xl bg-gray-900 text-white font-extrabold hover:bg-black"
           >
             Continue shopping
           </a>
           <a
-            href="../admin"
+            href={merchantAdminHref}
             className="px-5 py-3 rounded-xl border border-gray-300 text-gray-900 font-extrabold hover:bg-gray-50"
           >
             Merchant admin
