@@ -1,6 +1,11 @@
 import React, { useMemo } from 'react';
 import { Product, StoreConfig } from '../types.ts';
-import { ShoppingBag, Star, Menu, Search, X, Instagram, Facebook, Twitter, ArrowRight } from 'lucide-react';
+import { ShoppingBag, Menu, Search, X, Instagram, Facebook, Twitter, ArrowRight, Plus } from 'lucide-react';
+
+function formatMoney(currency: string, amount: number) {
+  const symbol = currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '$';
+  return `${symbol}${amount.toFixed(2)}`;
+}
 
 interface StorefrontProps {
   products: Product[];
@@ -10,29 +15,31 @@ interface StorefrontProps {
 
 const Storefront: React.FC<StorefrontProps> = ({ products, config, onExit }) => {
   const activeProducts = useMemo(() => products.filter(p => p.status === 'ACTIVE'), [products]);
+  const primary = config.theme.primaryColor;
+  const secondary = config.theme.secondaryColor;
 
   return (
     <div className="min-h-screen flex flex-col font-sans" style={{ fontFamily: config.theme.fontFamily }}>
       {/* Dynamic Announcement Bar */}
-      <div className="py-2 text-center text-xs font-medium text-white px-4" style={{ backgroundColor: config.theme.secondaryColor }}>
-        GRAND OPENING SALE — FREE SHIPPING ON ALL ORDERS
+      <div className="py-2 text-center text-[11px] sm:text-xs font-semibold text-white px-4" style={{ backgroundColor: secondary }}>
+        Free shipping over $50 • 30-day returns • Secure checkout
       </div>
 
       {/* Navigation */}
-      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100">
+      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <Menu className="h-6 w-6 text-gray-500 md:hidden mr-4" />
-              <span className="text-2xl font-bold tracking-tight" style={{ color: config.theme.secondaryColor }}>
+              <a href="/store" className="text-lg sm:text-2xl font-extrabold tracking-tight" style={{ color: secondary }}>
                 {config.name}
-              </span>
+              </a>
             </div>
             
             <div className="hidden md:flex space-x-8">
-              <a href="#" className="text-gray-900 hover:text-gray-500 font-medium text-sm">Shop All</a>
-              <a href="#" className="text-gray-900 hover:text-gray-500 font-medium text-sm">New Arrivals</a>
-              <a href="#" className="text-gray-900 hover:text-gray-500 font-medium text-sm">About Us</a>
+              <a href="/store" className="text-gray-900 hover:text-gray-500 font-semibold text-sm">Shop</a>
+              <a href="/store" className="text-gray-900 hover:text-gray-500 font-semibold text-sm">New</a>
+              <a href="/store" className="text-gray-900 hover:text-gray-500 font-semibold text-sm">About</a>
             </div>
 
             <div className="flex items-center space-x-4">
@@ -53,86 +60,138 @@ const Storefront: React.FC<StorefrontProps> = ({ products, config, onExit }) => 
       </nav>
 
       {/* Hero Section */}
-      <div className="relative bg-gray-50 overflow-hidden">
+      <div className="relative bg-white overflow-hidden border-b border-gray-100">
         <div className="max-w-7xl mx-auto">
-          <div className="relative z-10 pb-8 bg-gray-50 sm:pb-16 md:pb-20 lg:max-w-2xl lg:w-full lg:pb-28 xl:pb-32 pt-20 px-4 sm:px-6 lg:px-8">
-            <main className="mt-10 mx-auto max-w-7xl sm:mt-12 md:mt-16 lg:mt-20 xl:mt-28">
-              <div className="sm:text-center lg:text-left">
-                <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
-                  <span className="block xl:inline">{config.theme.heroHeadline.split(' ').slice(0, 3).join(' ')}</span>{' '}
-                  <span className="block" style={{ color: config.theme.primaryColor }}>{config.theme.heroHeadline.split(' ').slice(3).join(' ')}</span>
+          <div className="relative z-10 py-14 sm:py-20 lg:py-24 px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-500">New season essentials</p>
+                <h1 className="mt-3 text-4xl sm:text-5xl font-extrabold tracking-tight text-gray-900">
+                  {config.theme.heroHeadline}
                 </h1>
-                <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl lg:mx-0">
+                <p className="mt-4 text-base sm:text-lg text-gray-600 max-w-xl">
                   {config.description}
                 </p>
-                <div className="mt-5 sm:mt-8 sm:flex sm:justify-center lg:justify-start">
-                  <div className="rounded-md shadow">
-                    <a href="#" className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white md:py-4 md:text-lg transition-transform hover:scale-105" style={{ backgroundColor: config.theme.primaryColor }}>
-                      Shop Collection
-                    </a>
+                <div className="mt-7 flex flex-col sm:flex-row gap-3">
+                  <a
+                    href="/store#products"
+                    className="inline-flex items-center justify-center px-6 py-3 rounded-full text-sm font-semibold text-white shadow-sm"
+                    style={{ backgroundColor: primary }}
+                  >
+                    Shop now
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </a>
+                  <a
+                    href="/store#products"
+                    className="inline-flex items-center justify-center px-6 py-3 rounded-full text-sm font-semibold border border-gray-300 text-gray-900 hover:bg-gray-50"
+                  >
+                    Browse best sellers
+                  </a>
+                </div>
+                <div className="mt-8 grid grid-cols-3 gap-4 max-w-md">
+                  <div className="text-xs text-gray-600">
+                    <div className="font-bold text-gray-900">30-day</div>
+                    <div>returns</div>
+                  </div>
+                  <div className="text-xs text-gray-600">
+                    <div className="font-bold text-gray-900">Secure</div>
+                    <div>payments</div>
+                  </div>
+                  <div className="text-xs text-gray-600">
+                    <div className="font-bold text-gray-900">Fast</div>
+                    <div>shipping</div>
                   </div>
                 </div>
               </div>
-            </main>
+
+              <div className="relative">
+                <div className="absolute -inset-6 rounded-[32px] blur-2xl opacity-40" style={{ backgroundColor: primary }} />
+                <div className="relative rounded-[28px] border border-gray-200 bg-gradient-to-b from-white to-gray-50 overflow-hidden shadow-sm">
+                  <div className="aspect-[4/3] bg-gray-100 flex items-center justify-center">
+                    <div className="text-gray-400 font-extrabold tracking-widest text-sm">HERO IMAGE</div>
+                  </div>
+                  <div className="p-5">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-bold text-gray-900">Featured drop</div>
+                      <div className="text-xs font-semibold text-gray-500">Limited</div>
+                    </div>
+                    <div className="mt-2 text-xs text-gray-600">
+                      A Shopify-style storefront template, powered by Ezshopia.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="lg:absolute lg:inset-y-0 lg:right-0 lg:w-1/2 bg-gray-200 flex items-center justify-center overflow-hidden">
-            {/* Placeholder Hero Image using Primary Color Tint */}
-             <div className="w-full h-full opacity-20" style={{ backgroundColor: config.theme.primaryColor }}></div>
-             <div className="absolute inset-0 flex items-center justify-center text-gray-400 font-bold text-4xl opacity-20 rotate-12">
-                STORE HERO IMAGE
-             </div>
         </div>
       </div>
 
       {/* Featured Products */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 w-full">
-        <div className="flex justify-between items-center mb-12">
-            <h2 className="text-2xl font-bold text-gray-900">Featured Products</h2>
-            <a href="#" className="text-sm font-medium hover:underline flex items-center" style={{ color: config.theme.primaryColor }}>
-                View all <ArrowRight className="w-4 h-4 ml-1" />
-            </a>
+      <div id="products" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 w-full">
+        <div className="flex items-end justify-between mb-8">
+          <div>
+            <h2 className="text-2xl font-extrabold tracking-tight text-gray-900">Featured products</h2>
+            <p className="mt-1 text-sm text-gray-600">Clean, Shopify-style cards with real product pages.</p>
+          </div>
+          <a href="/store#products" className="text-sm font-semibold hover:underline flex items-center" style={{ color: primary }}>
+            View all <ArrowRight className="w-4 h-4 ml-1" />
+          </a>
         </div>
         
         {activeProducts.length === 0 ? (
-             <div className="text-center py-24 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+             <div className="text-center py-24 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
                 <ShoppingBag className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-500">No active products found in catalog.</p>
                 <p className="text-sm text-gray-400">Go to Admin > Products to add items.</p>
              </div>
         ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-y-10 gap-x-6 xl:gap-x-8">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 sm:gap-x-6 gap-y-10">
             {activeProducts.map((product) => (
-                <div key={product.id} className="group relative">
-                <div className="w-full aspect-square bg-gray-200 rounded-lg overflow-hidden relative">
-                    <img
-                        src={product.images[0] || 'https://via.placeholder.com/400'}
+              <div key={product.id} className="group">
+                <div className="relative">
+                  <a href={`/products/${encodeURIComponent(product.slug || '')}`} className="block">
+                    <div className="aspect-[4/5] bg-gray-100 rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
+                      <img
+                        src={product.images[0] || 'https://via.placeholder.com/800'}
                         alt={product.title}
-                        className="w-full h-full object-center object-cover group-hover:opacity-75 transition-opacity"
-                    />
-                    {product.tags.includes('New') && (
-                        <span className="absolute top-2 left-2 bg-white text-xs font-bold px-2 py-1 uppercase tracking-wide rounded">New</span>
-                    )}
-                </div>
-                <div className="mt-4 flex justify-between">
-                    <div>
-                    <h3 className="text-sm text-gray-700">
-                        <a
-                          href={`/products/${encodeURIComponent(product.slug || '')}`}
-                          className="text-left hover:underline cursor-pointer"
-                          style={{ textDecorationColor: config.theme.primaryColor }}
-                        >
-                          <span aria-hidden="true" className="absolute inset-0" />
-                          {product.title}
-                        </a>
-                    </h3>
-                    <p className="mt-1 text-sm text-gray-500 capitalize">{product.tags[0] || 'General'}</p>
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                      />
                     </div>
-                    <p className="text-sm font-medium text-gray-900">
-                        {config.currency === 'USD' ? '$' : '€'}{product.price.toFixed(2)}
-                    </p>
+                  </a>
+
+                  {product.tags?.includes('New') && (
+                    <span className="absolute top-3 left-3 bg-white/95 border border-gray-200 text-[10px] font-extrabold px-2 py-1 uppercase tracking-wider rounded-full">
+                      New
+                    </span>
+                  )}
+
+                  <button
+                    type="button"
+                    className="absolute bottom-3 left-3 right-3 hidden sm:flex items-center justify-center gap-2 rounded-full px-4 py-2 text-xs font-semibold text-white shadow-sm opacity-0 translate-y-2 transition-all group-hover:opacity-100 group-hover:translate-y-0"
+                    style={{ backgroundColor: primary }}
+                    onClick={() => alert('Demo: cart not connected yet')}
+                  >
+                    <Plus className="w-4 h-4" />
+                    Quick add
+                  </button>
                 </div>
+
+                <div className="mt-4">
+                  <a
+                    href={`/products/${encodeURIComponent(product.slug || '')}`}
+                    className="block text-sm font-semibold text-gray-900 hover:underline underline-offset-4"
+                    style={{ textDecorationColor: primary }}
+                  >
+                    {product.title}
+                  </a>
+                  <div className="mt-1 flex items-center justify-between gap-3">
+                    <div className="text-xs text-gray-600 truncate">{product.tags?.[0] || 'General'}</div>
+                    <div className="text-sm font-bold text-gray-900 whitespace-nowrap">
+                      {formatMoney(config.currency, product.price)}
+                    </div>
+                  </div>
                 </div>
+              </div>
             ))}
             </div>
         )}
