@@ -19,25 +19,52 @@ function safeParseJson<T>(value: string | null): T | null {
   }
 }
 
+function safeDecodeURIComponent(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 export default function ProductDetailPage() {
-  const params = useParams<{ slug: string }>();
-  const slug = useMemo(() => decodeURIComponent(params.slug || ''), [params.slug]);
+  const params = useParams();
+  const slug = useMemo(() => {
+    const raw = (params as any)?.slug as string | string[] | undefined;
+    const joined = Array.isArray(raw) ? raw.join('/') : raw || '';
+    return safeDecodeURIComponent(joined);
+  }, [params]);
 
   const [state, setState] = useState<LoadedState>({ status: 'loading' });
 
   useEffect(() => {
-    try {
-      const products = safeParseJson<Product[]>(localStorage.getItem('ezshopia_products')) || [];
-      const config = safeParseJson<StoreConfig>(localStorage.getItem('ezshopia_config'));
-      const product = products.find((p) => p.slug === slug);
-      if (!product) {
-        setState({ status: 'not_found' });
-        return;
+    let cancelled = false;
+    const run = () => {
+      try {
+        const products = safeParseJson<Product[]>(localStorage.getItem('ezshopia_products')) || [];
+        const config = safeParseJson<StoreConfig>(localStorage.getItem('ezshopia_config'));
+        const product = products.find((p) => p.slug === slug);
+        if (cancelled) return;
+        if (!product) {
+          setState({ status: 'not_found' });
+          return;
+        }
+        setState({ status: 'ready', product, config });
+      } catch {
+        if (!cancelled) setState({ status: 'not_found' });
       }
-      setState({ status: 'ready', product, config });
-    } catch {
-      setState({ status: 'not_found' });
-    }
+    };
+
+    // Ensure we never hang on "loading" if something goes wrong with hydration.
+    const timer = window.setTimeout(() => {
+      if (!cancelled) setState({ status: 'not_found' });
+    }, 2500);
+
+    run();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [slug]);
 
   if (state.status === 'loading') {
