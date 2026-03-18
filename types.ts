@@ -88,6 +88,29 @@ export interface Order {
   status: 'PAID' | 'PENDING' | 'SHIPPED';
   date: string;
   items: number;
+
+  // Extended fields for checkout flow (optional for backward compat)
+  email?: string;
+  paymentStatus?: 'PAID' | 'PENDING' | 'FAILED' | 'REFUNDED';
+  fulfillmentStatus?: 'UNFULFILLED' | 'FULFILLED' | 'PARTIALLY_FULFILLED' | 'CANCELLED';
+  shippingAddress?: {
+    name: string;
+    address1: string;
+    address2?: string;
+    city: string;
+    province?: string;
+    country: string;
+    zip: string;
+    phone?: string;
+  };
+  lineItems?: Array<{
+    productId: string;
+    title: string;
+    price: number;
+    quantity: number;
+    image?: string;
+    slug?: string;
+  }>;
 }
 
 // --- NEW MODULES ---

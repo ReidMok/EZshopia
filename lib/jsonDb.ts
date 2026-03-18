@@ -321,6 +321,65 @@ export async function updateOrderStatusForStore(storeKey: string, orderId: strin
   return updated;
 }
 
+export async function createOrderFromCheckout(
+  storeKey: string,
+  input: {
+    email: string;
+    customerName: string;
+    shippingAddress: NonNullable<Order['shippingAddress']>;
+    items: Array<{ productId: string; quantity: number }>;
+  }
+) {
+  const db = await readDb();
+  const store = await ensureStore(db, storeKey);
+
+  const productMap = new Map(store.products.map((p) => [p.id, p]));
+  const lineItems: NonNullable<Order['lineItems']> = [];
+  for (const it of input.items || []) {
+    const p = productMap.get(it.productId);
+    if (!p) continue;
+    const qty = Math.max(1, Math.min(99, Number(it.quantity) || 1));
+    lineItems.push({
+      productId: p.id,
+      title: p.title,
+      price: p.price,
+      quantity: qty,
+      image: p.images?.[0],
+      slug: p.slug,
+    });
+  }
+
+  if (lineItems.length === 0) {
+    return { error: 'empty_cart' as const };
+  }
+
+  const total = Number(lineItems.reduce((sum, li) => sum + li.price * li.quantity, 0).toFixed(2));
+  const id = `#ORD-${Math.floor(1000 + Math.random() * 9000)}`;
+  const order: Order = {
+    id,
+    customer: input.customerName || 'Customer',
+    email: input.email,
+    total,
+    status: 'PAID',
+    paymentStatus: 'PAID',
+    fulfillmentStatus: 'UNFULFILLED',
+    date: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+    items: lineItems.reduce((sum, li) => sum + li.quantity, 0),
+    shippingAddress: input.shippingAddress,
+    lineItems,
+  };
+
+  store.orders = [order, ...(store.orders || [])];
+  db.stores = db.stores || {};
+  db.stores[storeKey] = store;
+  await writeDb(db);
+
+  // Auto-create/update customer record from checkout
+  await ensureCustomerFromOrder(storeKey, order as any);
+
+  return order;
+}
+
 function mulberry32(seed: number) {
   return function () {
     let t = (seed += 0x6d2b79f5);

@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Product, StoreConfig } from '../types.ts';
-import { ShoppingBag, Menu, Search, X, Instagram, Facebook, Twitter, ArrowRight, Plus } from 'lucide-react';
+import { ShoppingBag, Menu, Search, X, Instagram, Facebook, Twitter, ArrowRight, Plus, Trash2 } from 'lucide-react';
 
 function formatMoney(currency: string, amount: number) {
   const symbol = currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '$';
@@ -11,12 +11,73 @@ interface StorefrontProps {
   products: Product[];
   config: StoreConfig;
   onExit: () => void;
+  storeKey?: string; // optional; when omitted, cart falls back to demo
 }
 
-const Storefront: React.FC<StorefrontProps> = ({ products, config, onExit }) => {
+type CartItem = {
+  productId: string;
+  title: string;
+  price: number;
+  quantity: number;
+  image?: string;
+  slug?: string;
+};
+
+const Storefront: React.FC<StorefrontProps> = ({ products, config, onExit, storeKey = 'demo' }) => {
   const activeProducts = useMemo(() => products.filter(p => p.status === 'ACTIVE'), [products]);
   const primary = config.theme.primaryColor;
   const secondary = config.theme.secondaryColor;
+  const cartStorageKey = `ezshopia_cart_${storeKey}`;
+  const [cartOpen, setCartOpen] = useState(false);
+  const [cart, setCart] = useState<CartItem[]>([]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(cartStorageKey);
+      if (raw) setCart(JSON.parse(raw));
+    } catch {}
+  }, [cartStorageKey]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(cartStorageKey, JSON.stringify(cart));
+    } catch {}
+  }, [cart, cartStorageKey]);
+
+  const cartCount = cart.reduce((sum, it) => sum + it.quantity, 0);
+  const subtotal = cart.reduce((sum, it) => sum + it.price * it.quantity, 0);
+
+  const addToCart = (p: Product, quantity = 1) => {
+    setCart((prev) => {
+      const idx = prev.findIndex((x) => x.productId === p.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = { ...next[idx], quantity: Math.min(99, next[idx].quantity + quantity) };
+        return next;
+      }
+      return [
+        ...prev,
+        {
+          productId: p.id,
+          title: p.title,
+          price: p.price,
+          quantity,
+          image: p.images?.[0],
+          slug: p.slug,
+        },
+      ];
+    });
+    setCartOpen(true);
+  };
+
+  const removeFromCart = (productId: string) => {
+    setCart((prev) => prev.filter((x) => x.productId !== productId));
+  };
+
+  const setQty = (productId: string, quantity: number) => {
+    const q = Math.max(1, Math.min(99, quantity));
+    setCart((prev) => prev.map((x) => (x.productId === productId ? { ...x, quantity: q } : x)));
+  };
 
   return (
     <div className="min-h-screen flex flex-col font-sans" style={{ fontFamily: config.theme.fontFamily }}>
@@ -44,10 +105,12 @@ const Storefront: React.FC<StorefrontProps> = ({ products, config, onExit }) => 
 
             <div className="flex items-center space-x-4">
               <Search className="h-5 w-5 text-gray-400 cursor-pointer hover:text-gray-600" />
-              <div className="relative group cursor-pointer">
-                <ShoppingBag className="h-5 w-5 text-gray-400 group-hover:text-gray-600" />
-                <span className="absolute -top-2 -right-2 bg-black text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center">0</span>
-              </div>
+              <button className="relative group" onClick={() => setCartOpen(true)} aria-label="Open cart">
+                <ShoppingBag className="h-5 w-5 text-gray-500 group-hover:text-gray-700" />
+                <span className="absolute -top-2 -right-2 bg-black text-white text-[10px] min-w-4 h-4 px-1 rounded-full flex items-center justify-center">
+                  {cartCount}
+                </span>
+              </button>
               <button 
                 onClick={onExit}
                 className="ml-4 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs px-3 py-1.5 rounded-full font-bold flex items-center transition-colors border border-gray-300"
@@ -169,7 +232,7 @@ const Storefront: React.FC<StorefrontProps> = ({ products, config, onExit }) => 
                     type="button"
                     className="absolute bottom-3 left-3 right-3 hidden sm:flex items-center justify-center gap-2 rounded-full px-4 py-2 text-xs font-semibold text-white shadow-sm opacity-0 translate-y-2 transition-all group-hover:opacity-100 group-hover:translate-y-0"
                     style={{ backgroundColor: primary }}
-                    onClick={() => alert('Demo: cart not connected yet')}
+                    onClick={() => addToCart(product, 1)}
                   >
                     <Plus className="w-4 h-4" />
                     Quick add
@@ -235,6 +298,91 @@ const Storefront: React.FC<StorefrontProps> = ({ products, config, onExit }) => 
             </div>
         </div>
       </footer>
+
+      {/* Cart Drawer */}
+      {cartOpen && (
+        <div className="fixed inset-0 z-[200]">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setCartOpen(false)} />
+          <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl border-l border-gray-200 flex flex-col">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="text-sm font-extrabold text-gray-900">Cart</div>
+              <button className="p-2 rounded-lg hover:bg-gray-50 text-gray-600" onClick={() => setCartOpen(false)} aria-label="Close cart">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-auto px-6 py-4">
+              {cart.length === 0 ? (
+                <div className="text-center py-16 text-gray-600">
+                  <ShoppingBag className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                  <div className="text-sm font-semibold">Your cart is empty</div>
+                  <div className="text-xs text-gray-500 mt-1">Add items to start checkout.</div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {cart.map((it) => (
+                    <div key={it.productId} className="flex gap-4">
+                      <a href={it.slug ? `products/${encodeURIComponent(it.slug)}` : '#'} className="w-20 h-20 rounded-xl overflow-hidden bg-gray-100 border border-gray-200 shrink-0">
+                        {it.image ? <img src={it.image} alt="" className="w-full h-full object-cover" /> : null}
+                      </a>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-extrabold text-gray-900 truncate">{it.title}</div>
+                        <div className="text-xs text-gray-500 mt-0.5">{formatMoney(config.currency, it.price)}</div>
+                        <div className="mt-2 flex items-center justify-between gap-3">
+                          <div className="inline-flex items-center rounded-xl border border-gray-300 bg-white overflow-hidden">
+                            <button
+                              type="button"
+                              className="px-2.5 py-2 text-gray-700 hover:bg-gray-50"
+                              onClick={() => setQty(it.productId, it.quantity - 1)}
+                              aria-label="Decrease quantity"
+                            >
+                              −
+                            </button>
+                            <div className="w-10 text-center text-sm font-bold text-gray-900">{it.quantity}</div>
+                            <button
+                              type="button"
+                              className="px-2.5 py-2 text-gray-700 hover:bg-gray-50"
+                              onClick={() => setQty(it.productId, it.quantity + 1)}
+                              aria-label="Increase quantity"
+                            >
+                              +
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            className="p-2 rounded-lg hover:bg-gray-50 text-gray-500"
+                            onClick={() => removeFromCart(it.productId)}
+                            aria-label="Remove item"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-gray-200 px-6 py-4 space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600 font-semibold">Subtotal</span>
+                <span className="text-gray-900 font-extrabold">{formatMoney(config.currency, subtotal)}</span>
+              </div>
+              <a
+                href="checkout"
+                className={`w-full inline-flex items-center justify-center px-5 py-3 rounded-xl text-white font-extrabold shadow-sm ${
+                  cart.length === 0 ? 'opacity-50 pointer-events-none' : ''
+                }`}
+                style={{ backgroundColor: primary }}
+              >
+                Checkout
+              </a>
+              <div className="text-[11px] text-gray-500 text-center">Demo checkout (no real payment)</div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

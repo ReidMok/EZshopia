@@ -149,6 +149,7 @@ export default function ProductDetailPage() {
 
   const money = (n: number) => `${symbol}${n.toFixed(2)}`;
   const reviewsCount = publicReviews.length;
+  const cartStorageKey = `ezshopia_cart_${storeKey}`;
   const rating =
     reviewsCount === 0
       ? 0
@@ -276,7 +277,25 @@ export default function ProductDetailPage() {
                   type="button"
                   className="flex-1 px-6 py-3 rounded-xl text-white font-extrabold shadow-sm hover:opacity-95 transition-opacity"
                   style={{ backgroundColor: primary }}
-                  onClick={() => alert(`Demo: add to cart (${qty}) not connected yet`)}
+                  onClick={() => {
+                    try {
+                      const raw = localStorage.getItem(cartStorageKey);
+                      const cart = raw ? JSON.parse(raw) : [];
+                      const idx = cart.findIndex((x: any) => x.productId === product.id);
+                      if (idx >= 0) cart[idx].quantity = Math.min(99, (cart[idx].quantity || 1) + qty);
+                      else
+                        cart.push({
+                          productId: product.id,
+                          title: product.title,
+                          price: product.price,
+                          quantity: qty,
+                          image: product.images?.[0],
+                          slug: product.slug,
+                        });
+                      localStorage.setItem(cartStorageKey, JSON.stringify(cart));
+                    } catch {}
+                    window.location.href = 'checkout';
+                  }}
                 >
                   Add to cart
                 </button>
@@ -437,7 +456,25 @@ export default function ProductDetailPage() {
             type="button"
             className="ml-auto px-4 py-2 rounded-full text-xs font-extrabold text-white"
             style={{ backgroundColor: primary }}
-            onClick={() => alert(`Demo: add to cart (${qty}) not connected yet`)}
+            onClick={() => {
+              try {
+                const raw = localStorage.getItem(cartStorageKey);
+                const cart = raw ? JSON.parse(raw) : [];
+                const idx = cart.findIndex((x: any) => x.productId === product.id);
+                if (idx >= 0) cart[idx].quantity = Math.min(99, (cart[idx].quantity || 1) + qty);
+                else
+                  cart.push({
+                    productId: product.id,
+                    title: product.title,
+                    price: product.price,
+                    quantity: qty,
+                    image: product.images?.[0],
+                    slug: product.slug,
+                  });
+                localStorage.setItem(cartStorageKey, JSON.stringify(cart));
+              } catch {}
+              window.location.href = 'checkout';
+            }}
           >
             Add
           </button>
