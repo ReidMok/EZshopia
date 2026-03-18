@@ -1,11 +1,12 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { Product, ProductStatus, PublicReview, StoreConfig } from '../types';
+import { Order, Product, ProductStatus, PublicReview, StoreConfig } from '../types';
 
 export type StoreData = {
   storeConfig: StoreConfig;
   products: Product[];
+  orders: Order[];
 };
 
 export type DbShape = {
@@ -69,6 +70,7 @@ async function readDb(): Promise<DbShape> {
       stores.demo = {
         storeConfig: legacyStoreConfig || DEFAULT_CONFIG,
         products: legacyProducts,
+        orders: [],
       };
     }
 
@@ -80,7 +82,7 @@ async function readDb(): Promise<DbShape> {
     };
   } catch {
     const init: DbShape = {
-      stores: { demo: { storeConfig: DEFAULT_CONFIG, products: [] } },
+      stores: { demo: { storeConfig: DEFAULT_CONFIG, products: [], orders: [] } },
       publicReviews: {},
       storeConfig: DEFAULT_CONFIG,
       products: [],
@@ -118,6 +120,7 @@ async function ensureStore(db: DbShape, storeKey: string) {
       subdomain: storeKey,
     },
     products: [],
+    orders: [],
   };
   db.stores[storeKey] = created;
   // legacy mirror for demo
@@ -265,6 +268,53 @@ export async function createProductForStore(storeKey: string, partial: Partial<P
   if (storeKey === 'demo') db.products = store.products; // legacy mirror
   await writeDb(db);
   return product;
+}
+
+export async function listOrdersForStore(storeKey: string) {
+  const db = await readDb();
+  const store = await ensureStore(db, storeKey);
+  return store.orders;
+}
+
+function randomFrom<T>(arr: T[]) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+export async function createTestOrderForStore(storeKey: string) {
+  const db = await readDb();
+  const store = await ensureStore(db, storeKey);
+
+  const customerNames = ['Alice Wong', 'Bob Smith', 'Emily Clark', 'Noah Johnson', 'Sophia Martinez', 'Liam Chen'];
+  const id = `#ORD-${Math.floor(1000 + Math.random() * 9000)}`;
+  const items = Math.floor(1 + Math.random() * 4);
+  const total = Number((Math.random() * 200 + 25).toFixed(2));
+  const order: Order = {
+    id,
+    customer: randomFrom(customerNames),
+    total,
+    status: 'PENDING',
+    date: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+    items,
+  };
+
+  store.orders = [order, ...(store.orders || [])];
+  db.stores = db.stores || {};
+  db.stores[storeKey] = store;
+  await writeDb(db);
+  return order;
+}
+
+export async function updateOrderStatusForStore(storeKey: string, orderId: string, status: Order['status']) {
+  const db = await readDb();
+  const store = await ensureStore(db, storeKey);
+  const idx = (store.orders || []).findIndex((o) => o.id === orderId);
+  if (idx < 0) return null;
+  const updated: Order = { ...store.orders[idx], status };
+  store.orders[idx] = updated;
+  db.stores = db.stores || {};
+  db.stores[storeKey] = store;
+  await writeDb(db);
+  return updated;
 }
 
 function mulberry32(seed: number) {
