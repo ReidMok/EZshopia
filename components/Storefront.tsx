@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-import Link from 'next/link';
 import { Product, StoreConfig } from '../types.ts';
 import { ShoppingBag, Star, Menu, Search, X, Instagram, Facebook, Twitter, ArrowRight } from 'lucide-react';
 
@@ -118,14 +117,14 @@ const Storefront: React.FC<StorefrontProps> = ({ products, config, onExit }) => 
                 <div className="mt-4 flex justify-between">
                     <div>
                     <h3 className="text-sm text-gray-700">
-                        <Link
+                        <a
                           href={`/products/${encodeURIComponent(product.slug || '')}`}
-                          className="text-left hover:underline"
+                          className="text-left hover:underline cursor-pointer"
                           style={{ textDecorationColor: config.theme.primaryColor }}
                         >
                           <span aria-hidden="true" className="absolute inset-0" />
                           {product.title}
-                        </Link>
+                        </a>
                     </h3>
                     <p className="mt-1 text-sm text-gray-500 capitalize">{product.tags[0] || 'General'}</p>
                     </div>
