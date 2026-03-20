@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { User, Palette, Scale } from 'lucide-react';
+import { User, Palette, Scale, Users, CreditCard, Truck } from 'lucide-react';
 import StoreSetup from './StoreSetup';
 import LegalAssistant from './LegalAssistant';
 import type { StoreConfig } from '../types';
@@ -11,7 +11,7 @@ interface MerchantSettingsProps {
   onUpdateConfig: (newConfig: Partial<StoreConfig>) => void;
 }
 
-type Tab = 'general' | 'branding' | 'legal';
+type Tab = 'general' | 'branding' | 'legal' | 'team' | 'payment' | 'shipping';
 
 export default function MerchantSettings({ storeConfig, onUpdateConfig }: MerchantSettingsProps) {
   const [activeTab, setActiveTab] = useState<Tab>('general');
@@ -28,6 +28,9 @@ export default function MerchantSettings({ storeConfig, onUpdateConfig }: Mercha
         { id: 'general' as const, label: 'General Info', icon: User },
         { id: 'branding' as const, label: 'Branding', icon: Palette },
         { id: 'legal' as const, label: 'Legal', icon: Scale },
+        { id: 'team' as const, label: 'Team & Roles', icon: Users },
+        { id: 'payment' as const, label: 'Payments', icon: CreditCard },
+        { id: 'shipping' as const, label: 'Shipping', icon: Truck },
       ] as const,
     []
   );
@@ -116,6 +119,50 @@ export default function MerchantSettings({ storeConfig, onUpdateConfig }: Mercha
 
         {activeTab === 'branding' && <StoreSetup onApplyTheme={onUpdateConfig} />}
         {activeTab === 'legal' && <LegalAssistant />}
+
+        {activeTab === 'team' && (
+          <div className="bg-white p-6 rounded-xl border border-gray-200 max-w-3xl">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-bold text-gray-900">Team Members</h3>
+              <button className="text-sm bg-gray-900 text-white px-3 py-1.5 rounded-lg">Invite Member</button>
+            </div>
+            <table className="min-w-full">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  <th className="text-left text-xs font-medium text-gray-500 pb-2">User</th>
+                  <th className="text-left text-xs font-medium text-gray-500 pb-2">Role</th>
+                  <th className="text-right text-xs font-medium text-gray-500 pb-2">Access</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                <tr>
+                  <td className="py-3 text-sm font-medium">owner@your-store.com (You)</td>
+                  <td className="py-3 text-sm text-gray-500">Owner</td>
+                  <td className="py-3 text-sm text-right text-green-600">Full Access</td>
+                </tr>
+                <tr>
+                  <td className="py-3 text-sm font-medium">support@your-store.com</td>
+                  <td className="py-3 text-sm text-gray-500">Support Agent</td>
+                  <td className="py-3 text-sm text-right text-gray-500">Inbox, Orders</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {activeTab === 'payment' && (
+          <div className="bg-white p-12 rounded-xl border border-gray-200 text-center text-gray-500">
+            <CreditCard className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+            <p>Stripe & PayPal integrations are managed here in the production version.</p>
+          </div>
+        )}
+
+        {activeTab === 'shipping' && (
+          <div className="bg-white p-12 rounded-xl border border-gray-200 text-center text-gray-500">
+            <Truck className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+            <p>Configure shipping zones and rates.</p>
+          </div>
+        )}
       </div>
     </div>
   );

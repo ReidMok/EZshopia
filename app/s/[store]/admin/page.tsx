@@ -1,31 +1,66 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import type { Customer, Order, Product, PublicReview, StoreConfig } from '../../../../types';
-import { Plus, Store, ArrowRight, Box, ShoppingBag, Settings as SettingsIcon, Package, Pencil, Sparkles, MessageSquare, EyeOff, Eye } from 'lucide-react';
+import type { Customer, Email, Order, Product, PublicReview, Review, StoreConfig, Workflow as WorkflowType } from '../../../../types';
+import { Plus, Store, ArrowRight, Box, ShoppingBag, Settings as SettingsIcon, Package, Pencil, Sparkles, MessageSquare, EyeOff, Eye, LayoutDashboard, Mail, Megaphone, Workflow as WorkflowIcon } from 'lucide-react';
 import AiProductCreator from '../../../../components/AiProductCreator';
 import ProductEditor from '../../../../components/ProductEditor';
 import MerchantSettings from '../../../../components/MerchantSettings';
 import OrderDetail from '../../../../components/OrderDetail';
 import Customers from '../../../../components/Customers';
+import ReviewsUI from '../../../../components/Reviews';
 import { clearClientSession, getClientSession } from '../../../../lib/authSession';
+import Dashboard from '../../../../components/Dashboard';
+import Inbox from '../../../../components/Inbox';
+import MarketingAgent from '../../../../components/MarketingAgent';
+import Workflows from '../../../../components/Workflows';
 
-type Tab = 'products' | 'orders' | 'customers' | 'reviews' | 'settings';
+type Tab = 'dashboard' | 'products' | 'orders' | 'customers' | 'inbox' | 'reviews' | 'marketing' | 'workflows' | 'settings';
 type View = 'list' | 'create' | 'edit' | 'order_detail';
+
+const DEFAULT_EMAILS: Email[] = [
+  {
+    id: 'e1',
+    from: 'Sarah Jenkins',
+    subject: 'Question about shipping to Canada',
+    body: 'Hi, I really love the Ceramic Vase but I was wondering if you ship to Toronto? And how long does it take?',
+    date: '10:30 AM',
+    isRead: false,
+    status: 'PENDING',
+  },
+  {
+    id: 'e2',
+    from: 'Mike Ross',
+    subject: 'Order #1002 Return',
+    body: 'The item arrived broken. I need a refund immediately.',
+    date: 'Yesterday',
+    isRead: true,
+    status: 'PENDING',
+  },
+];
+
+const DEFAULT_WORKFLOWS: WorkflowType[] = [
+  { id: '1', name: 'Auto-reply to 5-star reviews', trigger: 'NEW_REVIEW', condition: 'Rating equals 5', action: 'AUTO_REPLY', isActive: true },
+  { id: '2', name: 'Alert Low Stock', trigger: 'LOW_STOCK', condition: 'Inventory < 5', action: 'NOTIFY_ADMIN', isActive: true },
+  { id: '3', name: 'Thank You Email', trigger: 'NEW_ORDER', condition: 'Value > $100', action: 'SEND_EMAIL', isActive: false },
+];
 
 export default function StoreAdminPage() {
   const params = useParams<{ store: string }>();
   const store = params?.store || 'demo';
   const router = useRouter();
 
-  const [tab, setTab] = useState<Tab>('products');
+  const [tab, setTab] = useState<Tab>('dashboard');
   const [view, setView] = useState<View>('list');
   const [config, setConfig] = useState<StoreConfig | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [reviews, setReviews] = useState<Array<PublicReview & { productTitle?: string; productSlug?: string }>>([]);
+  const [reviewReplies, setReviewReplies] = useState<Record<string, string>>({});
+  const [emails, setEmails] = useState<Email[]>([]);
+  const [workflows, setWorkflows] = useState<WorkflowType[]>([]);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,6 +106,66 @@ export default function StoreAdminPage() {
 
   useEffect(() => {
     if (authStatus !== 'ok') return;
+    const emailsKey = `ezshopia_emails_${encodeURIComponent(store)}`;
+    const workflowsKey = `ezshopia_workflows_${encodeURIComponent(store)}`;
+    const reviewRepliesKey = `ezshopia_review_replies_${encodeURIComponent(store)}`;
+
+    try {
+      const rawEmails = localStorage.getItem(emailsKey);
+      if (rawEmails) setEmails(JSON.parse(rawEmails) as Email[]);
+      else setEmails(DEFAULT_EMAILS);
+    } catch {
+      setEmails(DEFAULT_EMAILS);
+    }
+
+    try {
+      const rawWorkflows = localStorage.getItem(workflowsKey);
+      if (rawWorkflows) setWorkflows(JSON.parse(rawWorkflows) as WorkflowType[]);
+      else setWorkflows(DEFAULT_WORKFLOWS);
+    } catch {
+      setWorkflows(DEFAULT_WORKFLOWS);
+    }
+
+    try {
+      const rawReplies = localStorage.getItem(reviewRepliesKey);
+      if (rawReplies) setReviewReplies(JSON.parse(rawReplies) as Record<string, string>);
+    } catch {
+      setReviewReplies({});
+    }
+  }, [store, authStatus]);
+
+  useEffect(() => {
+    if (authStatus !== 'ok') return;
+    const emailsKey = `ezshopia_emails_${encodeURIComponent(store)}`;
+    try {
+      localStorage.setItem(emailsKey, JSON.stringify(emails));
+    } catch {
+      // ignore
+    }
+  }, [emails, store, authStatus]);
+
+  useEffect(() => {
+    if (authStatus !== 'ok') return;
+    const workflowsKey = `ezshopia_workflows_${encodeURIComponent(store)}`;
+    try {
+      localStorage.setItem(workflowsKey, JSON.stringify(workflows));
+    } catch {
+      // ignore
+    }
+  }, [workflows, store, authStatus]);
+
+  useEffect(() => {
+    if (authStatus !== 'ok') return;
+    const reviewRepliesKey = `ezshopia_review_replies_${encodeURIComponent(store)}`;
+    try {
+      localStorage.setItem(reviewRepliesKey, JSON.stringify(reviewReplies));
+    } catch {
+      // ignore
+    }
+  }, [reviewReplies, store, authStatus]);
+
+  useEffect(() => {
+    if (authStatus !== 'ok') return;
     setLoading(true);
     const run = async () => {
       try {
@@ -83,6 +178,24 @@ export default function StoreAdminPage() {
     };
     run();
   }, [store, authStatus]);
+
+  const merchantReviews: Review[] = useMemo(() => {
+    return (reviews || []).slice(0, 50).map((r) => {
+      const visibility = r.visibility || 'VISIBLE';
+      const status: Review['status'] = visibility === 'VISIBLE' ? 'APPROVED' : 'PENDING';
+      return {
+        id: r.id,
+        productId: r.productId,
+        productName: r.productTitle || 'Product',
+        customer: r.authorName,
+        rating: r.rating,
+        comment: r.body,
+        date: new Date(r.createdAt).toLocaleDateString(),
+        status,
+        reply: status === 'APPROVED' ? reviewReplies[r.id] : undefined,
+      };
+    });
+  }, [reviews, reviewReplies]);
 
   if (loading) {
     return (
@@ -303,6 +416,17 @@ export default function StoreAdminPage() {
               <nav className="p-2 space-y-1">
                 <button
                   onClick={() => {
+                    setTab('dashboard');
+                    setView('list');
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold ${
+                    tab === 'dashboard' ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <LayoutDashboard className="w-4 h-4" /> Dashboard
+                </button>
+                <button
+                  onClick={() => {
                     setTab('products');
                     setView('list');
                   }}
@@ -336,6 +460,17 @@ export default function StoreAdminPage() {
                 </button>
                 <button
                   onClick={() => {
+                    setTab('inbox');
+                    setView('list');
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold ${
+                    tab === 'inbox' ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <Mail className="w-4 h-4" /> Inbox
+                </button>
+                <button
+                  onClick={() => {
                     setTab('reviews');
                     setView('list');
                   }}
@@ -344,6 +479,28 @@ export default function StoreAdminPage() {
                   }`}
                 >
                   <MessageSquare className="w-4 h-4" /> Reviews
+                </button>
+                <button
+                  onClick={() => {
+                    setTab('marketing');
+                    setView('list');
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold ${
+                    tab === 'marketing' ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <Megaphone className="w-4 h-4" /> Marketing
+                </button>
+                <button
+                  onClick={() => {
+                    setTab('workflows');
+                    setView('list');
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold ${
+                    tab === 'workflows' ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <WorkflowIcon className="w-4 h-4" /> Workflows
                 </button>
                 <button
                   onClick={() => {
@@ -443,6 +600,75 @@ export default function StoreAdminPage() {
               </div>
             )}
 
+            {tab === 'dashboard' && (
+              <div className="bg-white rounded-2xl border border-gray-200 p-0 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100">
+                  <div className="text-sm font-extrabold text-gray-900">Dashboard</div>
+                  <div className="text-xs text-gray-500 mt-1">Store health & recent activities</div>
+                </div>
+                <div className="p-6">
+                  <Dashboard />
+                </div>
+              </div>
+            )}
+
+            {tab === 'inbox' && (
+              <div className="bg-white rounded-2xl border border-gray-200 p-0 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100">
+                  <div className="text-sm font-extrabold text-gray-900">Inbox</div>
+                  <div className="text-xs text-gray-500 mt-1">AI-assisted email drafts for your store</div>
+                </div>
+                <div className="p-6">
+                  <Inbox
+                    emails={emails}
+                    onReply={(id, replyText) => {
+                      setEmails((prev) =>
+                        prev.map((e) =>
+                          e.id === id
+                            ? {
+                                ...e,
+                                status: 'REPLIED',
+                                replyDraft: replyText,
+                                isRead: true,
+                              }
+                            : e
+                        )
+                      );
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {tab === 'marketing' && (
+              <div className="bg-white rounded-2xl border border-gray-200 p-0 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100">
+                  <div className="text-sm font-extrabold text-gray-900">Marketing</div>
+                  <div className="text-xs text-gray-500 mt-1">Generate campaigns based on your catalog</div>
+                </div>
+                <div className="p-6">
+                  <MarketingAgent products={products} />
+                </div>
+              </div>
+            )}
+
+            {tab === 'workflows' && (
+              <div className="bg-white rounded-2xl border border-gray-200 p-0 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100">
+                  <div className="text-sm font-extrabold text-gray-900">Workflows</div>
+                  <div className="text-xs text-gray-500 mt-1">Automate store actions</div>
+                </div>
+                <div className="p-6">
+                  <Workflows
+                    workflows={workflows}
+                    onToggle={(id, nextIsActive) => {
+                      setWorkflows((prev) => prev.map((w) => (w.id === id ? { ...w, isActive: nextIsActive } : w)));
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
             {tab === 'settings' && (
               <div className="bg-white rounded-2xl border border-gray-200 p-6 text-sm text-gray-600">
                 Opening settings…
@@ -476,37 +702,40 @@ export default function StoreAdminPage() {
                     <div className="text-xs text-gray-500 mt-1">Reviews are generated on first product view (Demo) or collected from customers (future).</div>
                   </div>
                 ) : (
-                  <div className="divide-y divide-gray-100">
-                    {reviews.slice(0, 50).map((r) => (
-                      <div key={r.id} className="px-6 py-4 flex items-start justify-between gap-6">
-                        <div className="min-w-0">
-                          <div className="text-sm font-extrabold text-gray-900">{r.authorName}</div>
-                          <div className="text-xs text-gray-500 mt-0.5">
-                            {r.productTitle ? `${r.productTitle}` : 'Product'} • {new Date(r.createdAt).toLocaleDateString()} • {r.source}
-                          </div>
-                          <div className="mt-2 text-sm font-semibold text-gray-900">{r.title}</div>
-                          <div className="mt-1 text-sm text-gray-700 leading-relaxed">{r.body}</div>
-                        </div>
-                        <button
-                          className="shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 text-gray-700 text-xs font-semibold hover:bg-gray-50"
-                          onClick={async () => {
-                            const next = (r.visibility || 'VISIBLE') === 'VISIBLE' ? 'HIDDEN' : 'VISIBLE';
-                            const res = await fetch(`/api/store/${encodeURIComponent(store)}/reviews`, {
-                              method: 'PUT',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ productId: r.productId, reviewId: r.id, visibility: next }),
-                            });
-                            const updated = await res.json().catch(() => null);
-                            if (updated && !updated.error) {
-                              setReviews((prev) => prev.map((x) => (x.id === r.id ? { ...x, ...updated } : x)));
-                            }
-                          }}
-                        >
-                          {(r.visibility || 'VISIBLE') === 'VISIBLE' ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                          {(r.visibility || 'VISIBLE') === 'VISIBLE' ? 'Hide' : 'Show'}
-                        </button>
-                      </div>
-                    ))}
+                  <div className="p-6">
+                    <ReviewsUI
+                      reviews={merchantReviews}
+                      onUpdateReview={async (updatedReview) => {
+                        // 1) Update local reply persistence for UI.
+                        setReviewReplies((prev) => {
+                          const next = { ...prev };
+                          if (updatedReview.reply && updatedReview.reply.trim()) next[updatedReview.id] = updatedReview.reply;
+                          else delete next[updatedReview.id];
+                          return next;
+                        });
+
+                        // 2) Map UI status -> storefront visibility.
+                        const nextVisibility = updatedReview.status === 'APPROVED' ? 'VISIBLE' : 'HIDDEN';
+
+                        // 3) Persist visibility for this review.
+                        try {
+                          await fetch(`/api/store/${encodeURIComponent(store)}/reviews`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              productId: updatedReview.productId,
+                              reviewId: updatedReview.id,
+                              visibility: nextVisibility,
+                            }),
+                          });
+                        } catch {
+                          // ignore; optimistic UI will still update
+                        }
+
+                        // 4) Optimistic UI update.
+                        setReviews((prev) => prev.map((r) => (r.id === updatedReview.id ? { ...r, visibility: nextVisibility } : r)));
+                      }}
+                    />
                   </div>
                 )}
               </div>

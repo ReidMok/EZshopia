@@ -1,17 +1,37 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Workflow, Zap, Plus, ArrowRight, CheckCircle2, Play, Pause } from 'lucide-react';
 import { Workflow as WorkflowType } from '../types.ts';
 
-const Workflows: React.FC = () => {
-  const [workflows, setWorkflows] = useState<WorkflowType[]>([
-      { id: '1', name: 'Auto-reply to 5-star reviews', trigger: 'NEW_REVIEW', condition: 'Rating equals 5', action: 'AUTO_REPLY', isActive: true },
-      { id: '2', name: 'Alert Low Stock', trigger: 'LOW_STOCK', condition: 'Inventory < 5', action: 'NOTIFY_ADMIN', isActive: true },
-      { id: '3', name: 'Thank You Email', trigger: 'NEW_ORDER', condition: 'Value > $100', action: 'SEND_EMAIL', isActive: false },
-  ]);
+type WorkflowsProps = {
+  workflows?: WorkflowType[];
+  onToggle?: (workflowId: string, nextIsActive: boolean) => void;
+};
 
-  const toggleWorkflow = (id: string) => {
-      setWorkflows(workflows.map(w => w.id === id ? { ...w, isActive: !w.isActive } : w));
+const defaultWorkflows: WorkflowType[] = [
+  { id: '1', name: 'Auto-reply to 5-star reviews', trigger: 'NEW_REVIEW', condition: 'Rating equals 5', action: 'AUTO_REPLY', isActive: true },
+  { id: '2', name: 'Alert Low Stock', trigger: 'LOW_STOCK', condition: 'Inventory < 5', action: 'NOTIFY_ADMIN', isActive: true },
+  { id: '3', name: 'Thank You Email', trigger: 'NEW_ORDER', condition: 'Value > $100', action: 'SEND_EMAIL', isActive: false },
+];
+
+const Workflows: React.FC<WorkflowsProps> = ({ workflows: controlledWorkflows, onToggle }) => {
+  const [localWorkflows, setLocalWorkflows] = useState<WorkflowType[]>(defaultWorkflows);
+  const workflows = controlledWorkflows ?? localWorkflows;
+
+  const handleToggle = (id: string) => {
+    const current = workflows.find((w) => w.id === id);
+    if (!current) return;
+    const nextIsActive = !current.isActive;
+    if (controlledWorkflows && onToggle) {
+      onToggle(id, nextIsActive);
+      return;
+    }
+    setLocalWorkflows((prev) => prev.map((w) => (w.id === id ? { ...w, isActive: nextIsActive } : w)));
   };
+
+  const stats = useMemo(() => {
+    const activeCount = (workflows || []).filter((w) => w.isActive).length;
+    return { activeCount, total: workflows.length };
+  }, [workflows]);
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -23,6 +43,10 @@ const Workflows: React.FC = () => {
             <button className="flex items-center px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-black">
                 <Plus className="w-4 h-4 mr-2" /> Create Workflow
             </button>
+        </div>
+
+        <div className="mb-6 text-xs text-gray-500">
+          Active {stats.activeCount} / {stats.total}
         </div>
 
         <div className="space-y-4">
@@ -46,7 +70,7 @@ const Workflows: React.FC = () => {
                         </div>
 
                         <button 
-                            onClick={() => toggleWorkflow(workflow.id)}
+                            onClick={() => handleToggle(workflow.id)}
                             className={`p-2 rounded-full border ${workflow.isActive ? 'border-green-200 bg-green-50 text-green-600 hover:bg-green-100' : 'border-gray-200 bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
                             title={workflow.isActive ? "Pause" : "Activate"}
                         >

@@ -5,6 +5,21 @@ import { useRouter } from 'next/navigation';
 import { setClientSession } from '../../lib/authSession';
 import { Mail, Lock, ArrowRight, Store } from 'lucide-react';
 
+const ROOT_DOMAIN = 'ezshopia.com';
+
+function buildMerchantAdminHref(storeKey: string) {
+  if (typeof window === 'undefined') return `/s/${encodeURIComponent(storeKey)}/admin`;
+
+  const hostname = window.location.hostname.toLowerCase();
+  const rootSuffix = `.${ROOT_DOMAIN}`;
+  if (hostname.endsWith(rootSuffix)) {
+    const sub = hostname.slice(0, -rootSuffix.length);
+    if (sub === storeKey) return '/admin';
+  }
+
+  return `/s/${encodeURIComponent(storeKey)}/admin`;
+}
+
 export default function SignInPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -34,7 +49,7 @@ export default function SignInPage() {
         role: data.user.role,
       });
 
-      router.push(`/s/${encodeURIComponent(data.user.storeKey)}/admin`);
+      router.push(buildMerchantAdminHref(data.user.storeKey));
     } finally {
       setLoading(false);
     }

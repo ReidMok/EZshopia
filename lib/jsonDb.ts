@@ -124,7 +124,8 @@ async function ensureStore(db: DbShape, storeKey: string) {
     storeConfig: {
       ...base,
       id: `store_${storeKey}`,
-      name: `${titleCase(storeKey)} Store`,
+      // Keep demo branding consistent even when store is auto-provisioned.
+      name: storeKey === 'demo' ? base.name : `${titleCase(storeKey)} Store`,
       subdomain: storeKey,
     },
     products: [],
