@@ -3,6 +3,35 @@ import { Upload, Sparkles, Check, AlertCircle, X, Loader2, Tag, FileText, Share2
 import { fileToGenerativePart, generateProductFromImage } from '../services/geminiService.ts';
 import { VisionResult, Product } from '../types.ts';
 
+function slugify(input: string) {
+  return (
+    input
+      .toLowerCase()
+      .trim()
+      .replace(/['"]/g, '')
+      .replace(/&/g, ' and ')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '') || 'product'
+  );
+}
+
+function buildStoreProductUrl(slug: string) {
+  if (typeof window === 'undefined') return `/products/${encodeURIComponent(slug)}`;
+
+  const pathname = window.location.pathname || '';
+  if (pathname.startsWith('/s/')) {
+    const parts = pathname.split('/');
+    // /s/{storeKey}/admin  -> parts[2] is storeKey
+    const storeKey = parts[2] || 'demo';
+    const href = `/s/${encodeURIComponent(storeKey)}/products/${encodeURIComponent(slug)}`;
+    return href.replace(/\/{2,}/g, '/');
+  }
+
+  // Subdomain mode (store.domain.com) uses /products/[slug]
+  return `/products/${encodeURIComponent(slug)}`;
+}
+
 interface AiProductCreatorProps {
   onSave: (product: Partial<Product>) => void;
   onCancel: () => void;
@@ -201,7 +230,9 @@ const AiProductCreator: React.FC<AiProductCreatorProps> = ({ onSave, onCancel })
                  {generatedData?.seoTitle}
                </div>
                <div className="text-green-700 text-sm mb-1">
-                 https://ezshopia.store/products/sample-slug
+                 {generatedData?.title
+                   ? buildStoreProductUrl(slugify(generatedData.title))
+                   : buildStoreProductUrl('product')}
                </div>
                <div className="text-gray-600 text-sm line-clamp-2">
                  {generatedData?.seoDescription}
