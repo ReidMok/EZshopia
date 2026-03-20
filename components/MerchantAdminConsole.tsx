@@ -10,14 +10,11 @@ import Inbox from './Inbox';
 import Reviews from './Reviews';
 import Workflows from './Workflows';
 import Customers from './Customers';
-import SuperAdminDashboard from './SuperAdminDashboard';
-import Storefront from './Storefront';
 import OrderDetail from './OrderDetail';
 import ProductEditor from './ProductEditor';
 import { Product, ProductStatus, StoreConfig, Email, Review, Customer, Order, Workflow } from '../types';
-import { Plus, Package, Repeat, LogOut, Eye, Edit2, Eye as EyeIcon } from 'lucide-react';
+import { Plus, Package, LogOut, Edit2, Eye as EyeIcon } from 'lucide-react';
 
-type ViewMode = 'MERCHANT' | 'STOREFRONT' | 'SUPER_ADMIN';
 type ActiveTab =
   | 'dashboard'
   | 'products'
@@ -75,7 +72,6 @@ export default function MerchantAdminConsole(props: MerchantAdminConsoleProps) {
     onToggleWorkflow,
   } = props;
 
-  const [viewMode, setViewMode] = useState<ViewMode>('MERCHANT');
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [isCreating, setIsCreating] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -310,32 +306,6 @@ export default function MerchantAdminConsole(props: MerchantAdminConsoleProps) {
     }
   })();
 
-  if (viewMode === 'STOREFRONT') {
-    return (
-      <Storefront
-        products={products}
-        config={storeConfig}
-        storeKey={storeKey}
-        rootHrefOverride={undefined}
-        onExit={() => setViewMode('MERCHANT')}
-      />
-    );
-  }
-
-  if (viewMode === 'SUPER_ADMIN') {
-    return (
-      <div className="relative">
-        <SuperAdminDashboard />
-        <button
-          onClick={() => setViewMode('MERCHANT')}
-          className="fixed bottom-4 right-4 bg-white text-slate-900 border border-slate-300 px-4 py-2 rounded-full shadow-xl flex items-center text-sm font-bold hover:bg-slate-50 z-50"
-        >
-          <Repeat className="w-4 h-4 mr-2" /> Exit God Mode
-        </button>
-      </div>
-    );
-  }
-
   return (
     <>
       <Layout activeTab={activeTab} onTabChange={(t) => setActiveTab(t as ActiveTab)} storeName={storeConfig.name}>
@@ -344,18 +314,6 @@ export default function MerchantAdminConsole(props: MerchantAdminConsoleProps) {
 
       {/* View Toggles Fixed on Screen (match App.tsx legacy demo UI) */}
       <div className="fixed bottom-4 right-4 flex flex-col gap-2 z-50">
-        <button
-          onClick={() => setViewMode('STOREFRONT')}
-          className="bg-emerald-600 text-white px-4 py-2 rounded-full shadow-xl flex items-center text-sm font-bold hover:bg-emerald-700 transition-transform hover:scale-105 justify-center"
-        >
-          <Eye className="w-4 h-4 mr-2" /> View Live Store
-        </button>
-        <button
-          onClick={() => setViewMode('SUPER_ADMIN')}
-          className="bg-slate-900 text-white px-4 py-2 rounded-full shadow-xl flex items-center text-sm font-bold hover:bg-slate-800 transition-transform hover:scale-105 justify-center"
-        >
-          <Repeat className="w-4 h-4 mr-2" /> God Mode
-        </button>
         <button
           onClick={() => {
             onLogout();

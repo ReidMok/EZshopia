@@ -49,7 +49,8 @@ export default function SignInPage() {
         role: data.user.role,
       });
 
-      router.push(buildMerchantAdminHref(data.user.storeKey));
+      if (data.user.role === 'SUPER_ADMIN') router.push('/admin');
+      else router.push(buildMerchantAdminHref(data.user.storeKey));
     } finally {
       setLoading(false);
     }

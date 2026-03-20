@@ -46,6 +46,9 @@ const DEFAULT_CONFIG: StoreConfig = {
   },
 };
 
+const DEFAULT_SUPER_ADMIN_EMAIL = 'super@ezshopia.com';
+const DEFAULT_SUPER_ADMIN_PASSWORD = process.env.SUPER_ADMIN_PASSWORD || 'password';
+
 async function ensureDataDir() {
   await fs.mkdir(DATA_DIR, { recursive: true });
 }
@@ -80,13 +83,18 @@ async function readDb(): Promise<DbShape> {
       };
     }
 
-    return {
+    const db: DbShape = {
       stores,
       publicReviews: parsed.publicReviews || {},
       users: (parsed.users as AuthUser[] | undefined) || [],
       storeConfig: legacyStoreConfig,
       products: legacyProducts,
     };
+
+    const changed = ensureSuperAdminUser(db);
+    if (changed) await writeDb(db);
+
+    return db;
   } catch {
     const init: DbShape = {
       stores: { demo: { storeConfig: DEFAULT_CONFIG, products: [], orders: [], customers: [] } },
@@ -95,6 +103,7 @@ async function readDb(): Promise<DbShape> {
       storeConfig: DEFAULT_CONFIG,
       products: [],
     };
+    const changed = ensureSuperAdminUser(init);
     await writeDb(init);
     return init;
   }
@@ -193,6 +202,25 @@ export async function updateStoreConfigByKey(storeKey: string, patch: Partial<St
   return existing.storeConfig;
 }
 
+function ensureSuperAdminUser(db: DbShape) {
+  db.users = db.users || [];
+  const has = db.users.some((u) => u.role === 'SUPER_ADMIN');
+  if (has) return false;
+
+  const id = authUserIdFromEmail(DEFAULT_SUPER_ADMIN_EMAIL);
+  const user: AuthUser = {
+    id,
+    email: DEFAULT_SUPER_ADMIN_EMAIL,
+    passwordHash: hashPassword(DEFAULT_SUPER_ADMIN_PASSWORD),
+    storeKey: '',
+    role: 'SUPER_ADMIN',
+    createdAt: new Date().toISOString(),
+  };
+
+  db.users.push(user);
+  return true;
+}
+
 function authUserIdFromEmail(email: string) {
   return crypto.createHash('sha256').update(email.trim().toLowerCase()).digest('hex').slice(0, 16);
 }
@@ -244,10 +272,10 @@ export async function createMerchantOwnerUser(input: {
   return user;
 }
 
-export async function authenticateMerchantOwnerUser(input: {
+export async function authenticateUser(input: {
   email: string;
   password: string;
-}): Promise<{ user: AuthUser; storeConfig: StoreConfig }> {
+}): Promise<{ user: AuthUser; storeConfig: StoreConfig | null }> {
   const db = await readDb();
   const normalizedEmail = input.email.trim().toLowerCase();
 
@@ -256,7 +284,19 @@ export async function authenticateMerchantOwnerUser(input: {
   const candidateHash = hashPassword(input.password);
   if (candidateHash !== user.passwordHash) throw new Error('Invalid email or password');
 
+  if (user.role === 'SUPER_ADMIN') return { user, storeConfig: null };
+
   const storeConfig = (await getStoreConfigByKey(user.storeKey)) as StoreConfig;
+  return { user, storeConfig };
+}
+
+// Backward-compatible alias for the previous merchant-only login.
+export async function authenticateMerchantOwnerUser(input: {
+  email: string;
+  password: string;
+}): Promise<{ user: AuthUser; storeConfig: StoreConfig }> {
+  const { user, storeConfig } = await authenticateUser(input);
+  if (!storeConfig) throw new Error('Invalid email or password');
   return { user, storeConfig };
 }
 

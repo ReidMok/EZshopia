@@ -182,6 +182,7 @@ export default function StoreAdminPage() {
       emails={emails}
       workflows={workflows}
       onLogout={() => {
+        fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
         clearClientSession();
         router.push('/sign-in');
       }}

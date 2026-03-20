@@ -1,7 +1,7 @@
 export type ClientSession = {
   userId: string;
   storeKey: string;
-  role: 'MERCHANT_OWNER';
+  role: 'SUPER_ADMIN' | 'MERCHANT_OWNER' | 'MERCHANT_STAFF';
 };
 
 const SESSION_KEY = 'ezshopia_session';

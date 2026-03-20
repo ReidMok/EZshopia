@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { AUTH_COOKIE_NAME } from './lib/authToken';
+import { decodeAuthToken } from './lib/authTokenDecode';
 
 const ROOT_DOMAIN = 'ezshopia.com';
 const PLATFORM_SUBDOMAIN = 'admin';
@@ -36,6 +38,34 @@ export function middleware(req: NextRequest) {
   const hostname = getHostname(req);
   const pathname = nextUrl.pathname;
 
+  // Basic admin authorization (cookie-based).
+  // This runs before any rewrites so we can redirect early.
+  const authToken = req.cookies.get(AUTH_COOKIE_NAME)?.value;
+  const auth = authToken ? decodeAuthToken(authToken) : null;
+
+  const isPlatformAdmin = hostname === `${PLATFORM_SUBDOMAIN}.${ROOT_DOMAIN}` || (isLocalhost(hostname) && hostname === `${PLATFORM_SUBDOMAIN}.localhost`);
+  const isStoreAdminPathMode = pathname.startsWith('/s/') && pathname.endsWith('/admin');
+  const isStoreAdminSubdomain =
+    !!extractStoreFromHostname(hostname) && pathname === '/admin';
+
+  if (isPlatformAdmin) {
+    if (!auth || auth.role !== 'SUPER_ADMIN') {
+      const url = nextUrl.clone();
+      url.pathname = '/sign-in';
+      return NextResponse.redirect(url);
+    }
+  }
+
+  if (!isPlatformAdmin && (isStoreAdminPathMode || isStoreAdminSubdomain)) {
+    const storeFromPath =
+      isStoreAdminPathMode ? pathname.split('/')[2] : extractStoreFromHostname(hostname);
+    if (!auth || (auth.role !== 'MERCHANT_OWNER' && auth.role !== 'MERCHANT_STAFF') || auth.storeKey !== storeFromPath) {
+      const url = nextUrl.clone();
+      url.pathname = '/sign-in';
+      return NextResponse.redirect(url);
+    }
+  }
+
   // Skip Next internals + assets
   if (
     pathname.startsWith('/_next') ||
@@ -70,5 +100,6 @@ export function middleware(req: NextRequest) {
 
 export const config = {
   matcher: ['/((?!_next/|.*\\..*).*)'],
+  runtime: 'nodejs',
 };
 

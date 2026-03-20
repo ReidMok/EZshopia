@@ -174,7 +174,7 @@ export interface Customer {
   aiInsights?: string; // AI generated summary
 }
 
-export type AuthRole = 'MERCHANT_OWNER';
+export type AuthRole = 'SUPER_ADMIN' | 'MERCHANT_OWNER' | 'MERCHANT_STAFF';
 
 export interface AuthUser {
   id: string;

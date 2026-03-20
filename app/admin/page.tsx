@@ -1,37 +1,32 @@
 'use client';
 
-import dynamic from 'next/dynamic';
-import React, { Suspense } from 'react';
-
-// Reuse existing platform/admin app shell (browser-only).
-const App = dynamic(() => import('../../App'), {
-  ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center h-screen bg-gray-50">
-      <div className="text-center">
-        <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <h2 className="text-xl font-bold text-gray-900">Ezshopia Admin</h2>
-        <p className="text-gray-500">Loading platform console…</p>
-      </div>
-    </div>
-  ),
-});
+import React from 'react';
+import { useRouter } from 'next/navigation';
+import SuperAdminDashboard from '../../components/SuperAdminDashboard';
+import { clearClientSession } from '../../lib/authSession';
 
 export default function AdminHome() {
+  const router = useRouter();
+
   return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center h-screen bg-gray-50">
-          <div className="text-center">
-            <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <h2 className="text-xl font-bold text-gray-900">Ezshopia Admin</h2>
-            <p className="text-gray-500">Starting…</p>
-          </div>
-        </div>
-      }
-    >
-      <App />
-    </Suspense>
+    <div>
+      <div className="px-6 py-4 border-b border-gray-100 bg-white flex items-center justify-between">
+        <div className="text-sm font-bold text-gray-900">Platform Admin</div>
+        <button
+          onClick={async () => {
+            try {
+              await fetch('/api/auth/logout', { method: 'POST' });
+            } catch {}
+            clearClientSession();
+            router.push('/sign-in');
+          }}
+          className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-sm font-semibold hover:bg-gray-50"
+        >
+          Logout
+        </button>
+      </div>
+      <SuperAdminDashboard />
+    </div>
   );
 }
 
