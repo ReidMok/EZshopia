@@ -306,9 +306,30 @@ export default function MerchantAdminConsole(props: MerchantAdminConsoleProps) {
     }
   })();
 
+  const storeRootHref = (() => {
+    if (typeof window === 'undefined') return `/s/${encodeURIComponent(storeKey)}`;
+    const pathname = window.location.pathname || '';
+    const isPathMode = pathname.startsWith(`/s/${storeKey}/`) || pathname.startsWith(`/s/${encodeURIComponent(storeKey)}/`);
+    return isPathMode ? `/s/${encodeURIComponent(storeKey)}` : '/';
+  })();
+
   return (
     <>
-      <Layout activeTab={activeTab} onTabChange={(t) => setActiveTab(t as ActiveTab)} storeName={storeConfig.name}>
+      <Layout
+        activeTab={activeTab}
+        onTabChange={(t) => setActiveTab(t as ActiveTab)}
+        storeName={storeConfig.name}
+        rightActions={
+          <a
+            href={storeRootHref}
+            target="_blank"
+            rel="noreferrer"
+            className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold border border-gray-300"
+          >
+            View store
+          </a>
+        }
+      >
         {merchantContent}
       </Layout>
 

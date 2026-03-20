@@ -6,9 +6,10 @@ interface LayoutProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   storeName?: string;
+  rightActions?: ReactNode;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, storeName = "Ezshopia Demo" }) => {
+const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, storeName = "Ezshopia Demo", rightActions }) => {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'products', label: 'Products (AI)', icon: Box },
@@ -70,6 +71,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, store
             <Menu className="w-6 h-6 text-gray-600" />
           </div>
           <div className="flex items-center space-x-4 ml-auto">
+            {rightActions}
              <div className="hidden md:flex items-center text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100 mr-2">
                <Globe className="w-3 h-3 mr-1" />
                Hostinger Ready
