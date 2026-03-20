@@ -12,6 +12,21 @@ const ProductEditor: React.FC<ProductEditorProps> = ({ product, onSave, onCancel
   const [formData, setFormData] = useState<Product>({ ...product });
   const [imagePreview, setImagePreview] = useState<string>(product.images[0] || '');
 
+  const previewSlug = formData.slug || 'product-slug';
+  const previewHref = (() => {
+    if (typeof window === 'undefined') return `/products/${encodeURIComponent(previewSlug)}`;
+    const pathname = window.location.pathname || '';
+    // Merchant admin runs at /s/{storeKey}/admin, so we can always build correct public product URL.
+    if (pathname.startsWith('/s/')) {
+      const parts = pathname.split('/');
+      const storeKey = parts[2] || 'demo';
+      return `/s/${encodeURIComponent(storeKey)}/products/${encodeURIComponent(previewSlug)}`.replace(/\/{2,}/g, '/');
+    }
+    // Fallback: subdomain style /products/[slug]
+    return `/products/${encodeURIComponent(previewSlug)}`;
+  })();
+  const previewAbsolute = typeof window !== 'undefined' ? `${window.location.origin}${previewHref}` : previewHref;
+
   const handleInputChange = (field: keyof Product, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -275,12 +290,22 @@ const ProductEditor: React.FC<ProductEditorProps> = ({ product, onSave, onCancel
                   Search Preview
                 </label>
                 <div className="bg-white p-4 rounded-lg border border-gray-200">
-                  <div className="text-blue-800 text-lg font-medium hover:underline cursor-pointer truncate">
+                  <a
+                    href={previewHref}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-blue-800 text-lg font-medium hover:underline truncate block cursor-pointer"
+                  >
                     {formData.seoTitle || 'Your product title will appear here'}
-                  </div>
-                  <div className="text-green-700 text-sm mb-1">
-                    https://ezshopia.store/products/{formData.slug || 'product-slug'}
-                  </div>
+                  </a>
+                  <a
+                    href={previewHref}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-green-700 text-sm mb-1 hover:underline block"
+                  >
+                    {previewAbsolute}
+                  </a>
                   <div className="text-gray-600 text-sm line-clamp-2">
                     {formData.seoDescription || 'Your SEO description will appear here'}
                   </div>

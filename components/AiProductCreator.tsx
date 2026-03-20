@@ -226,14 +226,25 @@ const AiProductCreator: React.FC<AiProductCreatorProps> = ({ onSave, onCancel })
               SEO Preview (Google)
             </h4>
             <div className="bg-white p-4 rounded-lg border border-gray-200">
-               <div className="text-blue-800 text-lg font-medium hover:underline cursor-pointer truncate">
-                 {generatedData?.seoTitle}
-               </div>
-               <div className="text-green-700 text-sm mb-1">
-                 {generatedData?.title
-                   ? buildStoreProductUrl(slugify(generatedData.title))
-                   : buildStoreProductUrl('product')}
-               </div>
+               {(() => {
+                 const slug = generatedData?.title ? slugify(generatedData.title) : 'product';
+                 const href = buildStoreProductUrl(slug);
+                 return (
+                   <a
+                     href={href}
+                     target="_blank"
+                     rel="noreferrer"
+                     className="block"
+                   >
+                     <div className="text-blue-800 text-lg font-medium hover:underline truncate cursor-pointer">
+                       {generatedData?.seoTitle}
+                     </div>
+                     <div className="text-green-700 text-sm mb-1 hover:underline cursor-pointer">
+                       {href}
+                     </div>
+                   </a>
+                 );
+               })()}
                <div className="text-gray-600 text-sm line-clamp-2">
                  {generatedData?.seoDescription}
                </div>
