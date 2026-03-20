@@ -308,6 +308,9 @@ export default function MerchantAdminConsole(props: MerchantAdminConsoleProps) {
 
   const storeRootHref = (() => {
     if (typeof window === 'undefined') return `/s/${encodeURIComponent(storeKey)}`;
+    const customHost = (storeConfig.customDomains && storeConfig.customDomains[0]) || '';
+    if (customHost) return `https://${customHost}`;
+
     const pathname = window.location.pathname || '';
     const isPathMode = pathname.startsWith(`/s/${storeKey}/`) || pathname.startsWith(`/s/${encodeURIComponent(storeKey)}/`);
     return isPathMode ? `/s/${encodeURIComponent(storeKey)}` : '/';

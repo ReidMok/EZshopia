@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AUTH_COOKIE_NAME } from './lib/authToken';
 import { decodeAuthToken } from './lib/authTokenDecode';
+import { getStoreKeyByHostname } from './lib/jsonDb';
 
 const ROOT_DOMAIN = 'ezshopia.com';
 const PLATFORM_SUBDOMAIN = 'admin';
@@ -33,7 +34,7 @@ function extractStoreFromHostname(hostname: string) {
   return null;
 }
 
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const { nextUrl } = req;
   const hostname = getHostname(req);
   const pathname = nextUrl.pathname;
@@ -44,9 +45,15 @@ export function middleware(req: NextRequest) {
   const auth = authToken ? decodeAuthToken(authToken) : null;
 
   const isPlatformAdmin = hostname === `${PLATFORM_SUBDOMAIN}.${ROOT_DOMAIN}` || (isLocalhost(hostname) && hostname === `${PLATFORM_SUBDOMAIN}.localhost`);
-  const isStoreAdminPathMode = pathname.startsWith('/s/') && pathname.endsWith('/admin');
-  const isStoreAdminSubdomain =
-    !!extractStoreFromHostname(hostname) && pathname === '/admin';
+  const storeFromPathMode = pathname.startsWith('/s/') && pathname.endsWith('/admin') ? pathname.split('/')[2] : null;
+
+  // Store admin on host root: {storeKey}.domain.com/admin or custom domain /admin
+  const isStoreAdminHost = !isPlatformAdmin && (pathname === '/admin' || pathname.startsWith('/admin/'));
+  let storeFromHost = extractStoreFromHostname(hostname);
+  // For custom domains, only try mapping when not already in path-based mode.
+  if (!storeFromHost && (isStoreAdminHost || !pathname.startsWith('/s/'))) {
+    storeFromHost = await getStoreKeyByHostname(hostname);
+  }
 
   if (isPlatformAdmin) {
     if (!auth || auth.role !== 'SUPER_ADMIN') {
@@ -56,10 +63,10 @@ export function middleware(req: NextRequest) {
     }
   }
 
-  if (!isPlatformAdmin && (isStoreAdminPathMode || isStoreAdminSubdomain)) {
-    const storeFromPath =
-      isStoreAdminPathMode ? pathname.split('/')[2] : extractStoreFromHostname(hostname);
-    if (!auth || (auth.role !== 'MERCHANT_OWNER' && auth.role !== 'MERCHANT_STAFF') || auth.storeKey !== storeFromPath) {
+  const isStoreAdminRequest = !!storeFromPathMode || (!!storeFromHost && isStoreAdminHost);
+  if (!isPlatformAdmin && isStoreAdminRequest) {
+    const storeKeyToCheck = storeFromPathMode || storeFromHost;
+    if (!auth || (auth.role !== 'MERCHANT_OWNER' && auth.role !== 'MERCHANT_STAFF') || auth.storeKey !== storeKeyToCheck) {
       const url = nextUrl.clone();
       url.pathname = '/sign-in';
       return NextResponse.redirect(url);
@@ -86,8 +93,8 @@ export function middleware(req: NextRequest) {
     return NextResponse.rewrite(url);
   }
 
-  // Store subdomains -> /s/{store}
-  const store = extractStoreFromHostname(hostname);
+  // Store host mapping -> /s/{store}
+  const store = extractStoreFromHostname(hostname) || storeFromHost;
   if (store) {
     const url = nextUrl.clone();
     url.pathname = `/s/${store}${pathname === '/' ? '' : pathname}`;

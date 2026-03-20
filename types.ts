@@ -21,6 +21,9 @@ export interface StoreConfig {
   address: string;
   enableAi: boolean; // New: User control for AI features
   // geminiApiKey removed: Managed via process.env.API_KEY
+  // Shopify-like custom domain support for storefront.
+  // Example: ["shop.example.com"].
+  customDomains?: string[];
   theme: {
     primaryColor: string;
     secondaryColor: string;

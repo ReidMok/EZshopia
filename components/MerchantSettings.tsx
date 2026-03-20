@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { User, Palette, Scale, Users, CreditCard, Truck } from 'lucide-react';
+import { User, Palette, Scale, Users, CreditCard, Truck, Globe } from 'lucide-react';
 import StoreSetup from './StoreSetup';
 import LegalAssistant from './LegalAssistant';
 import type { StoreConfig } from '../types';
@@ -11,7 +11,7 @@ interface MerchantSettingsProps {
   onUpdateConfig: (newConfig: Partial<StoreConfig>) => void;
 }
 
-type Tab = 'general' | 'branding' | 'legal' | 'team' | 'payment' | 'shipping';
+type Tab = 'general' | 'branding' | 'legal' | 'domains' | 'team' | 'payment' | 'shipping';
 
 export default function MerchantSettings({ storeConfig, onUpdateConfig }: MerchantSettingsProps) {
   const [activeTab, setActiveTab] = useState<Tab>('general');
@@ -22,12 +22,24 @@ export default function MerchantSettings({ storeConfig, onUpdateConfig }: Mercha
     currency: storeConfig.currency,
   });
 
+  const [domainInput, setDomainInput] = useState(storeConfig.customDomains?.[0] || '');
+
+  const normalizeDomain = (input: string) => {
+    const raw = (input || '').trim().toLowerCase();
+    if (!raw) return '';
+    // Remove protocol + path.
+    const noProto = raw.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+    // Remove port.
+    return noProto.replace(/:\d+$/, '');
+  };
+
   const menu = useMemo(
     () =>
       [
         { id: 'general' as const, label: 'General Info', icon: User },
         { id: 'branding' as const, label: 'Branding', icon: Palette },
         { id: 'legal' as const, label: 'Legal', icon: Scale },
+        { id: 'domains' as const, label: 'Domains', icon: Globe },
         { id: 'team' as const, label: 'Team & Roles', icon: Users },
         { id: 'payment' as const, label: 'Payments', icon: CreditCard },
         { id: 'shipping' as const, label: 'Shipping', icon: Truck },
@@ -119,6 +131,71 @@ export default function MerchantSettings({ storeConfig, onUpdateConfig }: Mercha
 
         {activeTab === 'branding' && <StoreSetup onApplyTheme={onUpdateConfig} />}
         {activeTab === 'legal' && <LegalAssistant />}
+
+        {activeTab === 'domains' && (
+          <div className="bg-white p-6 rounded-xl border border-gray-200 max-w-3xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-6">Domains</h3>
+            <div className="space-y-6">
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <div className="text-sm font-bold text-gray-900">Temporary URL</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {typeof window !== 'undefined' ? `${window.location.origin}/s/${encodeURIComponent(storeConfig.subdomain)}` : ''}
+                </div>
+                <div className="text-xs text-gray-500 mt-2">It will keep working even after you add a custom domain.</div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Custom domain</label>
+                <input
+                  type="text"
+                  value={domainInput}
+                  onChange={(e) => setDomainInput(e.target.value)}
+                  placeholder="example.com"
+                  className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+                <div className="text-xs text-gray-500 mt-2">
+                  After saving, requests to this domain will be routed to your storefront.
+                </div>
+              </div>
+
+              <div className="flex gap-3 items-center">
+                <button
+                  className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-black transition-colors"
+                  onClick={() => {
+                    const host = normalizeDomain(domainInput);
+                    if (!host) {
+                      alert('Please input a valid domain.');
+                      return;
+                    }
+                    onUpdateConfig({ customDomains: [host] });
+                    alert('Domain saved. Please wait DNS propagation then refresh storefront.');
+                  }}
+                >
+                  Save domain
+                </button>
+                {storeConfig.customDomains?.[0] ? (
+                  <button
+                    className="px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                    onClick={() => {
+                      onUpdateConfig({ customDomains: [] });
+                      setDomainInput('');
+                      alert('Custom domain removed.');
+                    }}
+                  >
+                    Remove
+                  </button>
+                ) : null}
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900">
+                <div className="font-bold mb-1">DNS setup</div>
+                <div className="text-xs text-blue-800/90">
+                  Point your domain (root) DNS to this platform (A/CNAME). After DNS is live, your storefront will work on the custom domain.
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {activeTab === 'team' && (
           <div className="bg-white p-6 rounded-xl border border-gray-200 max-w-3xl">

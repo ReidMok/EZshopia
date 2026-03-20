@@ -1,6 +1,6 @@
-import fs from 'node:fs/promises';
-import path from 'node:path';
-import crypto from 'node:crypto';
+import fs from 'fs/promises';
+import path from 'path';
+import crypto from 'crypto';
 import { AuthUser, Order, Product, ProductStatus, PublicReview, StoreConfig } from '../types';
 import type { Customer } from '../types';
 
@@ -38,6 +38,7 @@ const DEFAULT_CONFIG: StoreConfig = {
   email: 'admin@ezshopia.com',
   address: '',
   enableAi: true,
+  customDomains: [],
   theme: {
     primaryColor: '#3b82f6',
     secondaryColor: '#1e293b',
@@ -136,6 +137,7 @@ async function ensureStore(db: DbShape, storeKey: string) {
       // Keep demo branding consistent even when store is auto-provisioned.
       name: storeKey === 'demo' ? base.name : `${titleCase(storeKey)} Store`,
       subdomain: storeKey,
+      customDomains: base.customDomains || [],
     },
     products: [],
     orders: [],
@@ -149,6 +151,25 @@ async function ensureStore(db: DbShape, storeKey: string) {
   }
   await writeDb(db);
   return created;
+}
+
+function normalizeHostname(hostname: string) {
+  return (hostname || '').trim().toLowerCase().split(':')[0];
+}
+
+// Resolve storeKey by custom domain (host header).
+export async function getStoreKeyByHostname(hostname: string): Promise<string | null> {
+  const host = normalizeHostname(hostname);
+  if (!host) return null;
+
+  const db = await readDb();
+  const stores = db.stores || {};
+
+  for (const [storeKey, storeData] of Object.entries(stores)) {
+    const domains = (storeData.storeConfig.customDomains || []).map(normalizeHostname);
+    if (domains.includes(host)) return storeKey;
+  }
+  return null;
 }
 
 export async function getBootstrap() {
