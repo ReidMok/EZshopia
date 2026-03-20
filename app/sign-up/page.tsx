@@ -1,0 +1,151 @@
+'use client';
+
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { setClientSession } from '../../lib/authSession';
+import { ArrowRight, Mail, Store, Lock } from 'lucide-react';
+
+function normalizeStoreKey(input: string) {
+  return input
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+export default function SignUpPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [storeKey, setStoreKey] = useState('');
+  const [storeName, setStoreName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const key = normalizeStoreKey(storeKey);
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, storeKey: key, storeName }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data?.error || 'signup_failed');
+        return;
+      }
+
+      setClientSession({
+        userId: data.user.id,
+        storeKey: data.user.storeKey,
+        role: data.user.role,
+      });
+
+      router.push(`/s/${encodeURIComponent(data.user.storeKey)}/admin`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4">
+      <div className="w-full max-w-md">
+        <div className="flex items-center gap-3 justify-center mb-6">
+          <div className="w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-sm">
+            <Store className="w-6 h-6" />
+          </div>
+        </div>
+        <h1 className="text-2xl font-extrabold text-center text-gray-900">Create store</h1>
+        <p className="text-center text-sm text-gray-600 mt-1">Get your own merchant admin</p>
+
+        <form className="mt-8 bg-white p-6 rounded-xl border border-gray-200" onSubmit={onSubmit}>
+          {error ? <div className="mb-4 text-sm text-red-600 font-semibold">{error}</div> : null}
+
+          <label className="block text-sm font-semibold text-gray-700" htmlFor="email">
+            Email
+          </label>
+          <div className="relative mt-1">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Mail className="w-5 h-5 text-gray-400" />
+            </div>
+            <input
+              id="email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              placeholder="you@company.com"
+            />
+          </div>
+
+          <label className="block text-sm font-semibold text-gray-700 mt-4" htmlFor="password">
+            Password
+          </label>
+          <div className="relative mt-1">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Lock className="w-5 h-5 text-gray-400" />
+            </div>
+            <input
+              id="password"
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              placeholder="At least 6 characters"
+            />
+          </div>
+
+          <label className="block text-sm font-semibold text-gray-700 mt-4" htmlFor="storeKey">
+            Store subdomain (storeKey)
+          </label>
+          <input
+            id="storeKey"
+            type="text"
+            required
+            value={storeKey}
+            onChange={(e) => setStoreKey(e.target.value)}
+            onBlur={() => setStoreKey(normalizeStoreKey(storeKey))}
+            className="w-full mt-1 px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+            placeholder="e.g. apple"
+          />
+          <p className="text-xs text-gray-500 mt-1">Used in links like `/s/{storeKey}/...`</p>
+
+          <label className="block text-sm font-semibold text-gray-700 mt-4" htmlFor="storeName">
+            Store display name
+          </label>
+          <input
+            id="storeName"
+            type="text"
+            value={storeName}
+            onChange={(e) => setStoreName(e.target.value)}
+            className="w-full mt-1 px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+            placeholder="e.g. Apple Store"
+          />
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="mt-6 w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-blue-600 text-white font-extrabold text-sm hover:bg-blue-700 disabled:opacity-50"
+          >
+            {loading ? 'Creating...' : <>Create & continue <ArrowRight className="w-4 h-4" /></>}
+          </button>
+
+          <div className="mt-4 text-center text-sm text-gray-600">
+            Already have an account?{' '}
+            <a href="/sign-in" className="font-extrabold text-blue-600 hover:text-blue-500">
+              Sign in
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+

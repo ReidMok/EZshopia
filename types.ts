@@ -173,3 +173,14 @@ export interface Customer {
   tags: string[]; // e.g. "VIP", "New", "At Risk"
   aiInsights?: string; // AI generated summary
 }
+
+export type AuthRole = 'MERCHANT_OWNER';
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  passwordHash: string;
+  storeKey: string;
+  role: AuthRole;
+  createdAt: string;
+}

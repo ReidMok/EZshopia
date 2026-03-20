@@ -39,6 +39,8 @@ export function middleware(req: NextRequest) {
   // Skip Next internals + assets
   if (
     pathname.startsWith('/_next') ||
+    pathname.startsWith('/sign-in') ||
+    pathname.startsWith('/sign-up') ||
     pathname.startsWith('/favicon') ||
     pathname.startsWith('/robots.txt') ||
     pathname.startsWith('/sitemap') ||

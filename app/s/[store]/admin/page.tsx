@@ -1,14 +1,15 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'next/navigation';
+import React, { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import type { Customer, Order, Product, PublicReview, StoreConfig } from '../../../../types';
 import { Plus, Store, ArrowRight, Box, ShoppingBag, Settings as SettingsIcon, Package, Pencil, Sparkles, MessageSquare, EyeOff, Eye } from 'lucide-react';
 import AiProductCreator from '../../../../components/AiProductCreator';
 import ProductEditor from '../../../../components/ProductEditor';
-import Settings from '../../../../components/Settings';
+import MerchantSettings from '../../../../components/MerchantSettings';
 import OrderDetail from '../../../../components/OrderDetail';
 import Customers from '../../../../components/Customers';
+import { clearClientSession, getClientSession } from '../../../../lib/authSession';
 
 type Tab = 'products' | 'orders' | 'customers' | 'reviews' | 'settings';
 type View = 'list' | 'create' | 'edit' | 'order_detail';
@@ -16,6 +17,7 @@ type View = 'list' | 'create' | 'edit' | 'order_detail';
 export default function StoreAdminPage() {
   const params = useParams<{ store: string }>();
   const store = params?.store || 'demo';
+  const router = useRouter();
 
   const [tab, setTab] = useState<Tab>('products');
   const [view, setView] = useState<View>('list');
@@ -27,8 +29,11 @@ export default function StoreAdminPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authStatus, setAuthStatus] = useState<'checking' | 'ok' | 'blocked'>('checking');
 
-  const storeHomeUrl = useMemo(() => `/s/${encodeURIComponent(store)}`, [store]);
+  const isPathMode = typeof window !== 'undefined' && window.location.pathname.startsWith(`/s/${store}/`);
+  const storeHomeUrl = isPathMode ? `/s/${encodeURIComponent(store)}` : '/';
+  const storefrontBaseHref = isPathMode ? `/s/${encodeURIComponent(store)}` : '';
 
   const refresh = async () => {
     const res = await fetch(`/api/store/${encodeURIComponent(store)}/bootstrap`, { cache: 'no-store' });
@@ -53,6 +58,20 @@ export default function StoreAdminPage() {
   };
 
   useEffect(() => {
+    // Client-side auth gating for merchant admin.
+    // (MVP: localStorage session; production should use real sessions.)
+    const session = getClientSession();
+    if (!session || session.storeKey !== store) {
+      setAuthStatus('blocked');
+      router.push('/sign-in');
+      return;
+    }
+    setAuthStatus('ok');
+  }, [store, router]);
+
+  useEffect(() => {
+    if (authStatus !== 'ok') return;
+    setLoading(true);
     const run = async () => {
       try {
         await refresh();
@@ -63,7 +82,7 @@ export default function StoreAdminPage() {
       }
     };
     run();
-  }, [store]);
+  }, [store, authStatus]);
 
   if (loading) {
     return (
@@ -96,6 +115,15 @@ export default function StoreAdminPage() {
                 View store <ArrowRight className="w-4 h-4" />
               </a>
               <button
+                onClick={() => {
+                  clearClientSession();
+                  router.push('/sign-in');
+                }}
+                className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-sm font-semibold hover:bg-gray-50 inline-flex items-center gap-2"
+              >
+                Logout
+              </button>
+              <button
                 onClick={() => setTab('products')}
                 className="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-semibold hover:bg-black"
               >
@@ -104,7 +132,7 @@ export default function StoreAdminPage() {
             </div>
           </div>
 
-          <Settings
+          <MerchantSettings
             storeConfig={config}
             onUpdateConfig={async (patch) => {
               const res = await fetch(`/api/store/${encodeURIComponent(store)}/store-config`, {
@@ -227,6 +255,15 @@ export default function StoreAdminPage() {
             >
               View store <ArrowRight className="w-4 h-4" />
             </a>
+            <button
+              onClick={() => {
+                clearClientSession();
+                router.push('/sign-in');
+              }}
+              className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-sm font-semibold hover:bg-gray-50 inline-flex items-center gap-2"
+            >
+              Logout
+            </button>
             {tab === 'products' ? (
               <button
                 onClick={() => setView('create')}
@@ -343,7 +380,7 @@ export default function StoreAdminPage() {
                       <div key={p.id} className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50">
                         <a
                           className="flex items-center gap-4 flex-1 min-w-0"
-                          href={`/s/${encodeURIComponent(store)}/products/${encodeURIComponent(p.slug)}`}
+                          href={`${storefrontBaseHref}/products/${encodeURIComponent(p.slug)}`.replace('//', '/')}
                         >
                           <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
                             {p.images?.[0] ? <img src={p.images[0]} alt="" className="w-full h-full object-cover" /> : null}

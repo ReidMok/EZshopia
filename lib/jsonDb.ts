@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { Order, Product, ProductStatus, PublicReview, StoreConfig } from '../types';
+import { AuthUser, Order, Product, ProductStatus, PublicReview, StoreConfig } from '../types';
 import type { Customer } from '../types';
 
 export type StoreData = {
@@ -16,6 +16,9 @@ export type DbShape = {
   stores?: Record<string, StoreData>;
   // Reviews keyed by productId (globally unique per DB)
   publicReviews?: Record<string, PublicReview[]>;
+
+  // Simple SaaS accounts (demo auth)
+  users?: AuthUser[];
 
   // Legacy single-store fields (kept for backward compatibility)
   storeConfig?: StoreConfig;
@@ -80,6 +83,7 @@ async function readDb(): Promise<DbShape> {
     return {
       stores,
       publicReviews: parsed.publicReviews || {},
+      users: (parsed.users as AuthUser[] | undefined) || [],
       storeConfig: legacyStoreConfig,
       products: legacyProducts,
     };
@@ -87,6 +91,7 @@ async function readDb(): Promise<DbShape> {
     const init: DbShape = {
       stores: { demo: { storeConfig: DEFAULT_CONFIG, products: [], orders: [], customers: [] } },
       publicReviews: {},
+      users: [],
       storeConfig: DEFAULT_CONFIG,
       products: [],
     };
@@ -185,6 +190,73 @@ export async function updateStoreConfigByKey(storeKey: string, patch: Partial<St
   if (storeKey === 'demo') db.storeConfig = existing.storeConfig;
   await writeDb(db);
   return existing.storeConfig;
+}
+
+function authUserIdFromEmail(email: string) {
+  return crypto.createHash('sha256').update(email.trim().toLowerCase()).digest('hex').slice(0, 16);
+}
+
+function hashPassword(password: string) {
+  return crypto.createHash('sha256').update(password).digest('hex');
+}
+
+export async function createMerchantOwnerUser(input: {
+  email: string;
+  password: string;
+  storeKey: string;
+  storeName?: string;
+}): Promise<AuthUser> {
+  const db = await readDb();
+  const normalizedEmail = input.email.trim().toLowerCase();
+  const userId = authUserIdFromEmail(normalizedEmail);
+
+  db.users = db.users || [];
+  const exists = db.users.some((u) => u.email.toLowerCase() === normalizedEmail);
+  if (exists) {
+    const existingUser = db.users.find((u) => u.email.toLowerCase() === normalizedEmail) || null;
+    throw new Error(`Account already exists for ${existingUser?.email || normalizedEmail}`);
+  }
+
+  await ensureStore(db, input.storeKey);
+  // Create user
+  const user: AuthUser = {
+    id: userId,
+    email: normalizedEmail,
+    passwordHash: hashPassword(input.password),
+    storeKey: input.storeKey,
+    role: 'MERCHANT_OWNER',
+    createdAt: new Date().toISOString(),
+  };
+  db.users.push(user);
+
+  // Optionally update store name
+  if (input.storeName && input.storeName.trim()) {
+    const store = db.stores?.[input.storeKey];
+    if (store) {
+      store.storeConfig.name = input.storeName.trim();
+      db.stores[input.storeKey] = store;
+      if (input.storeKey === 'demo') db.storeConfig = store.storeConfig;
+    }
+  }
+
+  await writeDb(db);
+  return user;
+}
+
+export async function authenticateMerchantOwnerUser(input: {
+  email: string;
+  password: string;
+}): Promise<{ user: AuthUser; storeConfig: StoreConfig }> {
+  const db = await readDb();
+  const normalizedEmail = input.email.trim().toLowerCase();
+
+  const user = (db.users || []).find((u) => u.email.toLowerCase() === normalizedEmail);
+  if (!user) throw new Error('Invalid email or password');
+  const candidateHash = hashPassword(input.password);
+  if (candidateHash !== user.passwordHash) throw new Error('Invalid email or password');
+
+  const storeConfig = (await getStoreConfigByKey(user.storeKey)) as StoreConfig;
+  return { user, storeConfig };
 }
 
 export async function listProducts() {
