@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { Workflow, Zap, Plus, ArrowRight, CheckCircle2, Play, Pause } from 'lucide-react';
+import React, { useState } from 'react';
+import { Workflow, Zap, Plus, ArrowRight, Play, Pause } from 'lucide-react';
 import { Workflow as WorkflowType } from '../types.ts';
 
 type WorkflowsProps = {
@@ -28,11 +28,6 @@ const Workflows: React.FC<WorkflowsProps> = ({ workflows: controlledWorkflows, o
     setLocalWorkflows((prev) => prev.map((w) => (w.id === id ? { ...w, isActive: nextIsActive } : w)));
   };
 
-  const stats = useMemo(() => {
-    const activeCount = (workflows || []).filter((w) => w.isActive).length;
-    return { activeCount, total: workflows.length };
-  }, [workflows]);
-
   return (
     <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-8">
@@ -43,10 +38,6 @@ const Workflows: React.FC<WorkflowsProps> = ({ workflows: controlledWorkflows, o
             <button className="flex items-center px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-black">
                 <Plus className="w-4 h-4 mr-2" /> Create Workflow
             </button>
-        </div>
-
-        <div className="mb-6 text-xs text-gray-500">
-          Active {stats.activeCount} / {stats.total}
         </div>
 
         <div className="space-y-4">

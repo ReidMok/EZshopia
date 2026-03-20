@@ -8,9 +8,10 @@ import { hasValidApiKey } from '../services/geminiService.ts';
 interface SettingsProps {
   storeConfig: StoreConfig;
   onUpdateConfig: (newConfig: Partial<StoreConfig>) => void;
+  hideIntegrations?: boolean;
 }
 
-const Settings: React.FC<SettingsProps> = ({ storeConfig, onUpdateConfig }) => {
+const Settings: React.FC<SettingsProps> = ({ storeConfig, onUpdateConfig, hideIntegrations = false }) => {
   const [activeTab, setActiveTab] = useState('general');
   // Local state for General tab form
   const [generalForm, setGeneralForm] = useState({
@@ -34,7 +35,7 @@ const Settings: React.FC<SettingsProps> = ({ storeConfig, onUpdateConfig }) => {
 
   const menu = [
     { id: 'general', label: 'General Info', icon: User },
-    { id: 'integrations', label: 'Integrations (API)', icon: Link2 },
+    ...(hideIntegrations ? [] : [{ id: 'integrations', label: 'Integrations (API)', icon: Link2 }]),
     { id: 'branding', label: 'AI Branding', icon: Palette },
     { id: 'legal', label: 'Legal (AI)', icon: Scale },
     { id: 'team', label: 'Team & Roles', icon: Users },
@@ -125,7 +126,7 @@ const Settings: React.FC<SettingsProps> = ({ storeConfig, onUpdateConfig }) => {
          
          {activeTab === 'legal' && <LegalAssistant />}
 
-         {activeTab === 'integrations' && (
+         {!hideIntegrations && activeTab === 'integrations' && (
             <div className="bg-white p-6 rounded-xl border border-gray-200 max-w-3xl">
                 <h3 className="text-lg font-bold text-gray-900 mb-6">System Integrations</h3>
                 <div className="space-y-6">
