@@ -50,9 +50,22 @@ export async function middleware(req: NextRequest) {
   // Store admin on host root: {storeKey}.domain.com/admin or custom domain /admin
   const isStoreAdminHost = !isPlatformAdmin && (pathname === '/admin' || pathname.startsWith('/admin/'));
   let storeFromHost = extractStoreFromHostname(hostname);
-  // For custom domains, only try mapping when not already in path-based mode.
+  // Custom domains (not on our platform root domain) should map by Host -> storeKey.
+  // IMPORTANT: middleware must be fault-tolerant; DB/fs errors should never break the whole site.
   if (!storeFromHost && (isStoreAdminHost || !pathname.startsWith('/s/'))) {
-    storeFromHost = await getStoreKeyByHostname(hostname);
+    const looksLikePlatformRoot =
+      hostname === `${PLATFORM_SUBDOMAIN}.${ROOT_DOMAIN}` ||
+      hostname === ROOT_DOMAIN ||
+      hostname.endsWith(`.${ROOT_DOMAIN}`);
+
+    // Only attempt DB lookup for non-platform hosts.
+    if (!looksLikePlatformRoot && hostname && !isLocalhost(hostname)) {
+      try {
+        storeFromHost = await getStoreKeyByHostname(hostname);
+      } catch {
+        storeFromHost = null;
+      }
+    }
   }
 
   if (isPlatformAdmin) {
