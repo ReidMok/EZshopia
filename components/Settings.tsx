@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Palette, Scale, CreditCard, Truck, Link2, Users, CheckCircle2, AlertCircle } from 'lucide-react';
+import { User, Palette, Scale, CreditCard, Truck, Link2, Users, CheckCircle2, AlertCircle, Globe } from 'lucide-react';
 import StoreSetup from './StoreSetup.tsx';
 import LegalAssistant from './LegalAssistant.tsx';
 import { StoreConfig } from '../types.ts';
@@ -20,6 +20,15 @@ const Settings: React.FC<SettingsProps> = ({ storeConfig, onUpdateConfig, hideIn
     currency: storeConfig.currency
   });
 
+  const [domainInput, setDomainInput] = useState(storeConfig.customDomains?.[0] || '');
+
+  const normalizeDomain = (input: string) => {
+    const raw = (input || '').trim().toLowerCase();
+    if (!raw) return '';
+    const noProto = raw.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+    return noProto.replace(/:\d+$/, '');
+  };
+
   // Safe check for API key
   const hasApiKey = hasValidApiKey();
   const isAiEnabled = storeConfig.enableAi && hasApiKey;
@@ -38,6 +47,7 @@ const Settings: React.FC<SettingsProps> = ({ storeConfig, onUpdateConfig, hideIn
     ...(hideIntegrations ? [] : [{ id: 'integrations', label: 'Integrations (API)', icon: Link2 }]),
     { id: 'branding', label: 'AI Branding', icon: Palette },
     { id: 'legal', label: 'Legal (AI)', icon: Scale },
+    { id: 'domains', label: 'Domains', icon: Globe },
     { id: 'team', label: 'Team & Roles', icon: Users },
     { id: 'payment', label: 'Payments', icon: CreditCard },
     { id: 'shipping', label: 'Shipping', icon: Truck },
@@ -125,6 +135,77 @@ const Settings: React.FC<SettingsProps> = ({ storeConfig, onUpdateConfig, hideIn
          )}
          
          {activeTab === 'legal' && <LegalAssistant />}
+
+         {activeTab === 'domains' && (
+           <div className="bg-white p-6 rounded-xl border border-gray-200 max-w-3xl">
+             <h3 className="text-lg font-bold text-gray-900 mb-6">Domains</h3>
+             <div className="space-y-6">
+               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                 <div className="text-sm font-bold text-gray-900">Temporary URL</div>
+                 <div className="text-xs text-gray-500 mt-1">
+                   {typeof window !== 'undefined'
+                     ? `${window.location.origin}/s/${encodeURIComponent(storeConfig.subdomain)}`
+                     : ''}
+                 </div>
+                 <div className="text-xs text-gray-500 mt-2">
+                   临时地址会一直可用；接入自有域名后仍可用此链接访问店铺。
+                 </div>
+               </div>
+
+               <div>
+                 <label className="block text-sm font-medium text-gray-700 mb-1">Custom domain（自定义域名）</label>
+                 <input
+                   type="text"
+                   value={domainInput}
+                   onChange={(e) => setDomainInput(e.target.value)}
+                   placeholder="example.com"
+                   className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                 />
+                 <div className="text-xs text-gray-500 mt-2">
+                   保存后数据会写入店铺配置；DNS 需指向当前平台。平台侧自定义域名路由上线后会自动生效。
+                 </div>
+               </div>
+
+               <div className="flex gap-3 items-center">
+                 <button
+                   type="button"
+                   className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-black transition-colors"
+                   onClick={() => {
+                     const host = normalizeDomain(domainInput);
+                     if (!host) {
+                       alert('请输入有效域名。');
+                       return;
+                     }
+                     onUpdateConfig({ customDomains: [host] });
+                     alert('域名已保存。请完成 DNS 解析并等待生效。');
+                   }}
+                 >
+                   Save domain
+                 </button>
+                 {storeConfig.customDomains?.[0] ? (
+                   <button
+                     type="button"
+                     className="px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                     onClick={() => {
+                       onUpdateConfig({ customDomains: [] });
+                       setDomainInput('');
+                       alert('已移除自定义域名。');
+                     }}
+                   >
+                     Remove
+                   </button>
+                 ) : null}
+               </div>
+
+               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900">
+                 <div className="font-bold mb-1">DNS 说明</div>
+                 <div className="text-xs text-blue-800/90">
+                   将您的域名（根域或 www）的 A 记录或 CNAME 指向当前站点所在主机；解析生效后访客即可用您的域名访问（需平台开启对应路由）。
+                 </div>
+               </div>
+             </div>
+           </div>
+         )}
 
          {!hideIntegrations && activeTab === 'integrations' && (
             <div className="bg-white p-6 rounded-xl border border-gray-200 max-w-3xl">
