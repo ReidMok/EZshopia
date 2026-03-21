@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AUTH_COOKIE_NAME } from './lib/authToken';
 import { decodeAuthToken } from './lib/authTokenDecode';
-import { getStoreKeyByHostname } from './lib/jsonDb';
+
+// NOTE: Do NOT import jsonDb here. Middleware runs in Edge runtime and cannot use Node fs/path/crypto.
+// Custom domain mapping (getStoreKeyByHostname) is disabled in middleware until we have an Edge-safe solution.
 
 const ROOT_DOMAIN = 'ezshopia.com';
 const PLATFORM_SUBDOMAIN = 'admin';
@@ -47,26 +49,9 @@ export async function middleware(req: NextRequest) {
   const isPlatformAdmin = hostname === `${PLATFORM_SUBDOMAIN}.${ROOT_DOMAIN}` || (isLocalhost(hostname) && hostname === `${PLATFORM_SUBDOMAIN}.localhost`);
   const storeFromPathMode = pathname.startsWith('/s/') && pathname.endsWith('/admin') ? pathname.split('/')[2] : null;
 
-  // Store admin on host root: {storeKey}.domain.com/admin or custom domain /admin
+  // Store admin on host root: {storeKey}.ezshopia.com/admin (subdomain mode only; custom domain mapping disabled in Edge)
   const isStoreAdminHost = !isPlatformAdmin && (pathname === '/admin' || pathname.startsWith('/admin/'));
-  let storeFromHost = extractStoreFromHostname(hostname);
-  // Custom domains (not on our platform root domain) should map by Host -> storeKey.
-  // IMPORTANT: middleware must be fault-tolerant; DB/fs errors should never break the whole site.
-  if (!storeFromHost && (isStoreAdminHost || !pathname.startsWith('/s/'))) {
-    const looksLikePlatformRoot =
-      hostname === `${PLATFORM_SUBDOMAIN}.${ROOT_DOMAIN}` ||
-      hostname === ROOT_DOMAIN ||
-      hostname.endsWith(`.${ROOT_DOMAIN}`);
-
-    // Only attempt DB lookup for non-platform hosts.
-    if (!looksLikePlatformRoot && hostname && !isLocalhost(hostname)) {
-      try {
-        storeFromHost = await getStoreKeyByHostname(hostname);
-      } catch {
-        storeFromHost = null;
-      }
-    }
-  }
+  const storeFromHost = extractStoreFromHostname(hostname);
 
   if (isPlatformAdmin) {
     if (!auth || auth.role !== 'SUPER_ADMIN') {
@@ -106,8 +91,8 @@ export async function middleware(req: NextRequest) {
     return NextResponse.rewrite(url);
   }
 
-  // Store host mapping -> /s/{store}
-  const store = extractStoreFromHostname(hostname) || storeFromHost;
+  // Store host mapping -> /s/{store} (subdomain mode: {store}.ezshopia.com)
+  const store = storeFromHost;
   if (store) {
     const url = nextUrl.clone();
     url.pathname = `/s/${store}${pathname === '/' ? '' : pathname}`;
